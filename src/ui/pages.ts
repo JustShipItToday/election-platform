@@ -6,7 +6,7 @@ import { dusk, sprig, tally } from './mascots';
 import { LIMITS, saveMap, type SavedMap } from '../storage';
 import { registerActions } from './actions';
 import { mapEl, paintMap, resizeMap, colorVar, type StateColor } from './map';
-import { getResearch } from './research';
+import { getResearch, officialFor } from './research';
 import type { Chamber, Party } from '../data/schema';
 
 const REPO = 'https://github.com/JustShipItToday/election-platform';
@@ -62,6 +62,7 @@ export function statusPage(): string {
     <li><strong>Races, nominees and polls:</strong> refreshed ${esc(formatInstant(Date.parse(m.generatedAt)))} (${esc(age(m.generatedAt))}). The scheduled refresh runs about every 15 minutes.</li>
     <li><strong>Analyst ratings, past results and candidate profiles:</strong> ${rs ? `built ${esc(formatInstant(Date.parse(rs.generatedAt)))} (${esc(age(rs.generatedAt))})` : 'not loaded'}.</li>
     <li><strong>Confirmed calls:</strong> ${ctx.calls.calls.length} race or measure call${ctx.calls.calls.length === 1 ? '' : 's'} confirmed${ctx.calls.updatedAt ? `, updated ${esc(formatInstant(Date.parse(ctx.calls.updatedAt)))}` : ''}.</li>
+    <li><strong>State election office feeds:</strong> ${ctx.official?.feeds.length ? ctx.official.feeds.map((f) => `${esc(f.state)} (file updated ${f.asOf ? esc(formatInstant(Date.parse(f.asOf))) : 'unknown'})`).join('; ') : 'none loaded'}. Only North Carolina is connected, because it is the one feed whose format I could verify before election night.</li>
     <li><strong>Server clock:</strong> ${clockState().trusted ? 'in sync with the web server' : 'not reachable, using your device clock'}.</li></ul></section>
   <section><h2>Coverage</h2><div class="summary">
     <div><b>${races('senate').length}</b><span>Senate races (${cov('senate')} with named nominees)</span></div>
@@ -135,7 +136,9 @@ export function resultsPage(): string {
       const rep = r.reported.afterName || r.reported.results.length
         ? `<span class="small">${r.reported.afterName ? `${esc(r.reported.afterName)}${r.reported.afterParty ? ` (${r.reported.afterParty})` : ''}` : r.reported.results.map((x) => `${esc(r.candidates.find((c) => c.id === x.candidateId)?.name ?? '')} ${x.pct ?? ''}${x.pct != null ? '%' : ''}`).join(', ')}</span> <span class="tag">unverified</span>`
         : '<span class="muted small">none yet</span>';
-      return `<tr><th scope="row">${esc(r.label)}</th><td>${mine ? esc(mine) : '<span class="muted">none</span>'}</td><td>${result}</td><td>${verdict}</td><td>${rep}</td></tr>`;
+      const off = officialFor(r.id);
+      const offTxt = off ? (off.c.totalVotes > 0 ? `${off.c.results.slice(0, 2).map((x) => `${esc(x.name)} ${x.pct ?? '–'}%`).join(' · ')} <span class="muted small">(${off.c.precinctsCounted}/${off.c.precinctsTotal} precincts, unofficial)</span>` : '<span class="muted small">no votes counted yet</span>') : '<span class="muted small">no verified feed</span>';
+      return `<tr><th scope="row">${esc(r.label)}</th><td>${mine ? esc(mine) : '<span class="muted">none</span>'}</td><td>${result}</td><td>${verdict}</td><td>${offTxt}</td><td>${rep}</td></tr>`;
     })
     .join('');
   const bp = ballotPicks('forecast');
@@ -156,7 +159,7 @@ export function resultsPage(): string {
   <p class="lede">A race counts as <strong>called</strong> only when an official source confirms it or two independent news sources agree. Anything else stays open.</p></div></header>
   <div class="summary"><div><b>${hit}</b><span>called and matched your forecast</span></div><div><b>${miss}</b><span>called and different</span></div><div><b>${pending}</b><span>forecast, not called yet</span></div><div><b>${unforecast}</b><span>called, no forecast from you</span></div></div>
   <p class="muted small">Calls updated ${esc(ctx.calls.updatedAt ? formatInstant(Date.parse(ctx.calls.updatedAt)) : 'not yet')} · Data refreshed ${esc(formatInstant(Date.parse(ctx.data.meta.generatedAt)))}. The "reported" column is read from each race's Wikipedia page and has not been independently verified.</p>
-  <div class="tablewrap"><table class="list"><thead><tr><th>Race</th><th>Your forecast</th><th>Called result</th><th>Compared</th><th>Reported by Wikipedia</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="tablewrap"><table class="list"><thead><tr><th>Race</th><th>Your forecast</th><th>Called result</th><th>Compared</th><th>State election office tally</th><th>Reported by Wikipedia</th></tr></thead><tbody>${rows}</tbody></table></div>
   <h2>Ballot questions (counted separately)</h2>
   <p class="muted small">${bHit} matched · ${bMiss} different · ${bPending} forecast, not called yet. Ballot questions never affect the Senate, House or Governor comparison above.</p>
   <div class="tablewrap"><table class="list"><thead><tr><th>Measure</th><th>Your forecast</th><th>Called result</th><th>Compared</th><th>Reported by Wikipedia</th></tr></thead><tbody>${ballotRows}</tbody></table></div></article>`;

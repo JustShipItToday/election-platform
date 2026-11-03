@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
+const BASE = (process.env.BASE_URL || BASE + '/').replace(/\/$/, '');
 const SD = require('os').tmpdir();
-// Run with `npm run dev -- --port 5199`, then `node tests/e2e/rehearsal.cjs`. Needs Playwright installed globally.
-const B = process.env.BASE_URL || 'http://127.0.0.1:5199/';
+const B = BASE + '/';
 (async () => {
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const errs = [];

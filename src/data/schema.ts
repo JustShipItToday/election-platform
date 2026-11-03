@@ -188,3 +188,23 @@ export const ResearchSchema = z.object({
   warnings: z.array(z.string()),
 });
 export type Research = z.infer<typeof ResearchSchema>;
+
+// ---------- Official (unofficial-until-certified) tallies from state election offices ----------
+export const OfficialContestSchema = z.object({
+  totalVotes: z.number(),
+  /** Precincts with at least one vote counted, and all precincts. Not the same as "reporting" in a call sense. */
+  precinctsCounted: z.number(),
+  precinctsTotal: z.number(),
+  results: z.array(z.object({ name: z.string(), party: PartySchema, partyCode: z.string(), votes: z.number(), pct: z.number().nullable(), candidateId: z.string().nullable() })),
+});
+export const OfficialSchema = z.object({
+  generatedAt: z.string(),
+  feeds: z.array(z.object({
+    state: z.string().length(2),
+    name: z.string(),
+    url: z.string(),
+    asOf: z.string().nullable(),
+    contests: z.record(z.string(), OfficialContestSchema),
+  })),
+});
+export type Official = z.infer<typeof OfficialSchema>;

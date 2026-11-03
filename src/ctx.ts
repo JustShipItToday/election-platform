@@ -1,4 +1,4 @@
-import type { BallotQuestion, CallsFile, Dataset, Party, Race } from './data/schema';
+import type { BallotQuestion, CallsFile, Dataset, Official, Party, Race } from './data/schema';
 import { evaluatePolls, DEFAULT_POLL_SETTINGS, type PollOutcome } from './domain/polling';
 import { partyOfPick, type Pick } from './domain/makeup';
 import { resolveBallot, resolveScope, type Scope } from './domain/scope';
@@ -25,6 +25,8 @@ export const ctx = {
   redrawn: new Set<string>(),
   data: null as unknown as Dataset,
   calls: { updatedAt: '', calls: [] } as CallsFile,
+  /** Tallies published by state election offices whose feeds are verified. May be empty. */
+  official: null as Official | null,
   working: structuredClone(emptyWorking) as Working,
   store: idb.store as MapStore,
   storePersistent: idb.persistent,

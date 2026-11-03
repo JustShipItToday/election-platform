@@ -14,7 +14,8 @@
     "prebuild": "node scripts/copy-maplibre-worker.mjs",
     "pretest": "node scripts/copy-maplibre-worker.mjs",
     "districts": "tsx pipeline/districts.ts",
-    "research": "tsx pipeline/research.ts"
+    "research": "tsx pipeline/research.ts",
+    "official": "tsx pipeline/official.ts"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",

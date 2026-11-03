@@ -1,4 +1,6 @@
-# 01 — External Dependencies (the "list of all external stuff")
+# 01 — External Dependencies (original research, 2026-11-03 morning)
+
+> Superseded in places by `09` and `11`: FiftyPlusOne was dropped (paid), VoteHub is the poll source, Wikipedia/Wikidata supply nominees, ratings, history and bios, Census TIGER 2026 supplies House districts, GDELT supplies news (browser-side), and North Carolina's election office supplies official tallies. Items below marked ⚠️ were unverified when first written.
 
 Researched 2026-11-03. **Verification status matters:** items marked ⚠️ were found via search snippets only. I have NOT yet confirmed their current terms, endpoints, or limits on the provider's own site. Nothing here is a final commitment.
 

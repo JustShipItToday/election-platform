@@ -1,6 +1,6 @@
 # AGENTS.md — Elecia (working title: Election Forecast Builder)
 
-> v0.2 — 2026-11-03. The owner approved a free, static GitHub Pages build with no accounts (see `docs/09-static-pivot.md`). Where this file describes a server, database trigger, or AI agent, that is the long-term design; `docs/09` says what actually ships now.
+> v0.3 — 2026-11-03. The owner approved a free, static GitHub Pages build with no accounts (see `docs/09-static-pivot.md`). Where this file describes a server, database trigger, or LLM agent, that is the long-term design; `docs/09` and `docs/11` say exactly what ships now and what is verified.
 
 ## 1. What this project is
 
@@ -9,7 +9,7 @@ A public-grade web app centered on the **2026 U.S. elections**. One major area, 
 - **Forecasting** (default): "What do you think will happen?"
 - **Endorsing**: "What do you want to happen / whom do you support?"
 
-(The AI research agent is **not shipped** in the static build, because it needs a paid key and a server; every rule below still binds it when it is built.) Plus **Reconcile** (descriptive stats comparing the two), a **factual-only AI research agent**, interactive maps, saved forecasts, and utility pages (About, Contact, Terms, Blog), each with its own designed look.
+(The research helper that ships is **rule-based and tool-driven, not an LLM**: an LLM needs a paid key and a server to keep its prompt secret. Every rule below binds any future LLM layer too.) Plus **Reconcile** (descriptive stats comparing the two), a **factual-only research helper**, interactive maps, saved forecasts, and utility pages (About, Contact, Terms, Blog), each with its own designed look.
 
 The owner is the primary user for now, but this is architected as a real public app. Tone: joyful, sunny, biophilic, modern, never childish, never a dark political-news dashboard.
 
@@ -53,7 +53,8 @@ No API keys or secrets in client code, the repo, logs, or prompts. Server-side e
 ## 4. Architecture conventions (proposed; see docs for rationale)
 
 - TypeScript everywhere, `strict: true`. Zod (or equivalent) schemas at every boundary: ingestion, API, tool I/O, DB reads of JSON.
-- Layers (current static build): `pipeline/` (provider adapters → validated `public/data/dataset.json`) → `src/data/` (Zod schema, shared) → `src/domain/` (pure deterministic logic: polling, makeup, lifecycle, deferral queue, scope, evidence gate, clock) → `src/ui/` (rendering). The UI never imports `pipeline/`. Long-term: `db/` and `tools/` layers for a server and AI agent.
+- Layers (current static build): `pipeline/` (source adapters: Wikipedia, VoteHub, congress-legislators, Census TIGER, GDELT is browser-side, NC election office) → validated JSON in `public/data/` → `src/data/` (Zod schema, shared) → `src/domain/` (pure deterministic logic: polling, makeup, lifecycle, deferral queue, scope, evidence gate, clock) → `src/tools/` (validated, sourced tool contracts; the only data path for the helper) → `src/assistant/` (policy guard and request parser) → `src/ui/` (rendering). The UI never imports `pipeline/`. Long-term: a server and database enforcing the lifecycle, and an LLM behind the same tools and policy.
+- Nothing is hand-curated. Every fact comes from a cited source via the pipeline; anything unavailable is shown as unavailable. Pipeline parsers are tested against real captured source text, labeled as fixtures.
 - Provider adapters are swappable. Never hard-code one polling or results provider.
 - Raw provider payloads are stored (immutable) alongside normalized rows so we can re-derive after a provider changes.
 - Forecast snapshots are immutable and reproducible (they pin the data snapshot + methodology used).
@@ -83,6 +84,7 @@ No API keys or secrets in client code, the repo, logs, or prompts. Server-side e
 
 ## 8. Testing expectations
 
+- 303 tests run in CI before every deploy (`npm test`): domain logic, real-fixture parsers, data and `calls.json` guards, a 205-case policy suite (advice, persuasion, prompt extraction), tool and request-parser tests. Browser scripts in `tests/e2e/` cover the flows.
 - Unit tests for all `domain/` code (polling methods, makeup, lifecycle with an injected clock, deferral queue, scope compiler).
 - Contract tests for every AI tool and provider adapter (recorded real responses, labeled fixtures).
 - Policy tests: an adversarial prompt suite (endorsement-seeking, persuasion, system-prompt extraction, injection via tool output) that must pass before any AI change ships.
@@ -99,4 +101,4 @@ No API keys or secrets in client code, the repo, logs, or prompts. Server-side e
 
 ## 10. Document map
 
-`docs/00-decisions-needed.md` · `01-external-dependencies.md` · `02-architecture-and-stack.md` · `03-data-model.md` · `04-ai-policy-and-tools.md` · `05-forecasting-endorsing-reconcile.md` · `06-lifecycle-and-results.md` · `07-design-and-maps.md` · `08-quality-security-roadmap.md`
+`docs/00-decisions-needed.md` · `01-external-dependencies.md` · `02-architecture-and-stack.md` (original plan) · `03-data-model.md` · `04-ai-policy-and-tools.md` · `05-forecasting-endorsing-reconcile.md` · `06-lifecycle-and-results.md` · `07-design-and-maps.md` · `08-quality-security-roadmap.md` · **`09-static-pivot.md` (what ships)** · **`10-election-night-runbook.md`** · **`11-coverage-and-limits.md` (what is verified, what is not)**

@@ -102,6 +102,30 @@ function candidatesHtml(race: Race): string {
   return `<details class="rsec"><summary>About the candidates</summary>${cards}</details>`;
 }
 
+/** Official tallies from a state election office (unofficial until certified). Shown only where a verified feed exists. */
+export function officialFor(raceId: string): { feedName: string; url: string; asOf: string | null; c: NonNullable<typeof ctx.official>['feeds'][number]['contests'][string] } | null {
+  for (const f of ctx.official?.feeds ?? []) {
+    const c = f.contests[raceId];
+    if (c) return { feedName: f.name, url: f.url, asOf: f.asOf, c };
+  }
+  return null;
+}
+
+function officialHtml(race: Race): string {
+  const o = officialFor(race.id);
+  if (!o) return '';
+  const rows = o.c.results
+    .slice(0, 8)
+    .map((x) => `<tr><td>${esc(x.name)}</td><td><span class="chip ${x.party}">${x.party}</span></td><td>${x.votes.toLocaleString('en-US')}</td><td>${x.pct !== null ? `${x.pct}%` : '–'}</td></tr>`)
+    .join('');
+  return `<details class="rsec" ${o.c.totalVotes > 0 ? 'open' : ''}><summary>Official tallies (state election office)</summary>
+    ${o.c.totalVotes > 0
+      ? `<div class="tablewrap"><table class="pt"><thead><tr><th>Candidate</th><th>Party</th><th>Votes</th><th>Share</th></tr></thead><tbody>${rows}</tbody></table></div>
+         <p class="muted small">${o.c.precinctsCounted} of ${o.c.precinctsTotal} precincts have votes counted.</p>`
+      : '<p class="muted">No votes are counted in the state file yet.</p>'}
+    <p class="muted small"><span class="tag">Unofficial</span> ${esc(o.feedName)}${o.asOf ? `, file updated ${esc(o.asOf.slice(0, 16).replace('T', ' '))} UTC` : ''}. Results are not final until certified, and Elecia does not call a race from vote counts alone.</p></details>`;
+}
+
 const newsHtmlByRace = new Map<string, string>();
 
 export function newsListHtml(items: NewsItem[], url: string, cached: boolean): string {
@@ -140,7 +164,7 @@ export function researchSections(race: Race): string {
   ensureResearch();
   if (missing) return '';
   if (!research) return `<p class="muted small">Loading research context…</p>`;
-  return `<div class="research"><h3 class="side-h">Research this race</h3>${candidatesHtml(race)}${ratingsHtml(race)}${historyHtml(race)}${newsHtml(race)}</div>`;
+  return `<div class="research"><h3 class="side-h">Research this race</h3>${officialHtml(race)}${candidatesHtml(race)}${ratingsHtml(race)}${historyHtml(race)}${newsHtml(race)}</div>`;
 }
 
 void ctx;

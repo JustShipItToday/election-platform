@@ -1,30 +1,27 @@
-# 09 — Static Pivot (what actually ships tonight)
+# 09 — What Ships (static GitHub Pages build)
 
-Decision record, 2026-11-03. The owner wants this live today, free, with no accounts. That replaces the Vercel + Supabase plan in `02`.
+Decision record, 2026-11-03. The owner wants this live today, free, with no accounts. That replaced the Vercel + Supabase plan in `02`. Verified facts and limits are in `11-coverage-and-limits.md`.
 
 ## What ships
-- A static site on **GitHub Pages**: Vite + TypeScript, MapLibre map, no server, no accounts, no analytics, no third-party requests at runtime (fonts are self-hosted).
-- **Senate (35 seats) and Governor (36 seats)** races only.
-- Forecasting (default), Endorsing, Reconcile (descriptive only), Saved maps, About/Blog/Contact/Terms, first-visit skippable tour, closed state, results view.
-- Data refreshed every 15 minutes by a GitHub Actions job (`.github/workflows/pages.yml`) running `pipeline/build-data.ts`. If a source is down, the last committed data is kept.
+- A static site on **GitHub Pages**: Vite + TypeScript, MapLibre, no server, no accounts, no analytics. Fonts are self-hosted and the production build carries a Content-Security-Policy.
+- **Senate (35), House (435 districts) and Governor (36) races**, plus **155 statewide ballot questions**.
+- **Forecasting** (default) and **Endorsing**, stored separately; **Reconcile** (descriptive only, with a paired map); **Saved** prediction maps (limit 1,500) and frozen forecast maps (limit 70); first-visit skippable tour; closed state and Results view; About, Blog, Contact, Terms, and a Data status page.
+- **Research on every race, each in its own labeled category:** polls (VoteHub), analyst ratings, past results, candidate profiles with verified photos and sourced bios, official state tallies where a feed is connected, live news headlines.
+- **Research helper:** rule-based and tool-driven (21 validated tools), always cites sources, hideable, with the factual-only policy enforced in code.
+- Data refreshes about every 15 minutes through GitHub Actions (`.github/workflows/pages.yml`). If a source is down, the last committed data stays live.
 
-## What does not ship (and why)
+## What does not ship, and why
 | Not shipped | Reason | Path forward |
 |---|---|---|
-| AI research agent | Needs a paid LLM key and a server to keep the key secret. The owner wants no spending. | Build it later behind a tiny serverless proxy, with every rule in `AGENTS.md` §3.1–3.2 and `04`. The "X away the AI" control is moot until then. |
-| Accounts / cloud sync | No server. | Supabase auth later if wanted. Local export/import exists now. |
-| House races, district map | Needs verified candidate data and post-redistricting boundaries (risk R1). | Tier 2. |
-| Ballot questions | No free structured source found for 2026 measures (VoteHub only has CA Prop 50). | Tier 2. |
-| Database-enforced shutdown | No database. | Client gate against server time (below). |
-| AP / DDHQ results | Licensed products; no free or academic tier found; access depends on the provider's contract, not on our legal review. Scraping AP is not allowed. | See the runbook (`10`) for the access request and the interim path. |
+| An LLM behind the helper | Needs a paid or quota-limited key and a server, because a prompt shipped in browser JavaScript cannot be secret | Cloudflare Worker (free tier) holding the key and prompt, using the same tools and policy; needs the owner's Cloudflare account |
+| Accounts / cloud sync | No server; owner chose none | Local export/import exists |
+| Database-enforced shutdown | No database | Client gate against server time (below) |
+| AP / Decision Desk HQ | Licensed products; no free or academic tier found; access is a contract with the provider | Request access (draft in `10`) |
+| Official results from most states | Feeds are undocumented and could not be verified before polls closed | North Carolina is connected; others can be added to `pipeline/official/` as they are verified |
+| Presidential results by district | No free structured source integrated | — |
 
 ## Shutdown on a static site
-`src/domain/clock.ts` reads the HTTP `Date` header from GitHub's CDN with a same-origin HEAD request, keeps an offset from the visitor's clock, and re-syncs every 5 minutes. All gating uses that corrected time. If the request fails, the site falls back to the visitor's clock and says so in the banner and About page. The write layer refuses saves after 09:57 UTC. Limits of this approach: a visitor who edits the page in devtools can bypass it, and a visitor whose browser blocks the request uses their own clock. For a personal, unlisted, educational site that is acceptable; it is documented rather than hidden.
+`src/domain/clock.ts` reads the HTTP `Date` header from GitHub's CDN with a same-origin HEAD request, keeps an offset from the visitor's clock, and re-syncs every 5 minutes. All gating uses that corrected time. If the request fails, the site falls back to the visitor's clock and says so in the banner, About and Data status pages. The write layer refuses saves after 09:57 UTC, and the pick buttons are removed from the page. A visitor who edits the page in developer tools can bypass a client-side gate; that limit is accepted for a free static site and documented.
 
 ## Sources actually used
-Polls: VoteHub. Nominees and seat holders for governors: Wikipedia race infoboxes (CC BY-SA). Senate roster and holdovers: unitedstates/congress-legislators. Governors (including the 14 holdover states): Wikipedia's "List of current United States governors", parsed and cross-checked against each race page. The lists of which Senate and governor races exist are derived from Wikipedia's 2026 election pages, and the pipeline stops if the counts are not 35 and 36. Nothing is hand-curated. Map: us-atlas (Census). Poll matching: poll `subject` ("2026 Michigan") gives the state; poll answers are matched to nominees by last name + first initial; polls that do not match two named nominees (for example primary polls) are not shown, and the count is reported in the data warnings.
-
-## Honest limits
-- Wikipedia is crowd-edited. Nominee lists are as current as the page; the card links to the page and shows the retrieval time.
-- VoteHub publishes polls, not averages. Every average is computed in the browser from the visible polls.
-- Governor holdovers and race lists come from Wikipedia and are cross-checked, but Wikipedia is crowd-edited, so cross-check warnings are published in the data status.
+Polls: VoteHub. Race lists, nominees, governors, ballot measures, ratings, past results, bios: Wikipedia (CC BY-SA, linked on every card) and Wikidata. Senate roster, caucus, portraits and service history: unitedstates/congress-legislators and its public-domain images. House district shapes: Census TIGER/Line 2026 (120th Congress), compared with TIGER 2025 to identify redrawn states. News: GDELT, fetched in the visitor's browser. Official tallies: North Carolina State Board of Elections. Photos beyond official portraits: Wikimedia Commons, only with an allowed license and shown with credit.

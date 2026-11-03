@@ -1,19 +1,17 @@
-# 00 — Decisions Needed From You
+# 00 — Decisions
 
-Ordered by how much they block everything else.
+## Resolved by the owner
+- Free hosting on GitHub Pages, no accounts, no spending. (D2, D4)
+- Free sources only; AP / DDHQ are licensed and cannot be obtained for free (D5): the free evidence-gated path is used.
+- Name: Elecia (recommended; domain and trademark unchecked). (D1)
+- No hand-curated data anywhere.
 
-| ID | Decision | My recommendation |
-|---|---|---|
-| **D3** | **Scope for tonight** (see roadmap tiers). 6 hours to 5 PM cannot honestly deliver everything. | Tier 1 (Senate + Governors, forecasting core, tour, About, DB-enforced shutdown, saved-map viewing, results scaffold), then House as time allows. |
-| **D5** | **Results source** after Nov 4 (no free national feed exists). | Hybrid: official state feeds + evidence-gated calls + your admin confirm. License AP/DDHQ later if you want automation. |
-| **A1** | **Anthropic API key** + monthly cap for the research agent. | Cap ~$25–50 for tonight; small model for classifier, larger for synthesis. |
-| **D2** | **Stack**: Next.js + Vercel + Supabase vs Cloudflare. | Next.js + Vercel + Supabase (fastest to ship; DB-enforced rules). |
-| **D1** | **Name** | **Elecia** (domain/trademark unchecked). |
-| **D6** | **Prediction map vs forecast map** definitions | Prediction map = working/autosave set (1,500). Forecast map = named frozen snapshot (70). |
-| **D9** | **Dead zone** 4:57–9:00 AM ET: show a calm closed state, or show results immediately at close? | Closed state until 9:00 AM ET as you specified. |
-| **D7** | May the user record endorsements conversationally ("I endorse X") via the AI, or UI-click only? | UI-click only (safest vs. "AI decides for you"). |
-| **D8** | Approve the refusal wording and WSJ redirect | As drafted in `04`. Note: pointing to one outlet is a editorial choice; it's one config string. |
-| **D4** | Account login: magic-link only, or also Google? | Magic link first; Google later. |
-| **D10** | Public or private link at launch? | Unlisted URL + `noindex` until you're happy. |
+## Decided by default (change by telling me)
+- Prediction map = working save (limit 1,500); forecast map = named frozen snapshot (limit 70). (D6)
+- Endorsements are recorded only with the buttons on a card, never through the helper. (D7)
+- Between 4:57 and 9:00 AM ET the site shows a calm closed state with a countdown. (D9)
+- The refusal text points to The Wall Street Journal; it is one constant in `src/assistant/policy.ts`. (D8)
+- The site is `noindex` until you remove the robots meta. (D10)
 
-Also confirm: you accept that anything marked ⚠️ in `01` must be verified before ingest, and that I'll say plainly when a source can't be had rather than substituting weaker data.
+## Still open (owner)
+See `10-election-night-runbook.md` (owner steps) and the final summary: merge to the default branch, enable Pages, optional LLM upgrade with a Cloudflare account, AP / DDHQ request, VoteHub license confirmation, legal review of Terms, domain and trademark.

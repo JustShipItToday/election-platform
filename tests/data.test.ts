@@ -70,3 +70,19 @@ describe('calls.json (hand-edited on election night)', () => {
     }
   });
 });
+
+import { OfficialSchema } from '../src/data/schema';
+
+describe('official tallies file', () => {
+  const official = OfficialSchema.parse(JSON.parse(readFileSync('public/data/official.json', 'utf8')));
+  it('only refers to races in the dataset and never exceeds the contest total', () => {
+    const ids = new Set(dataset.races.map((r) => r.id));
+    for (const f of official.feeds) {
+      for (const [raceId, c] of Object.entries(f.contests)) {
+        expect(ids.has(raceId), raceId).toBe(true);
+        expect(c.results.reduce((n, x) => n + x.votes, 0), raceId).toBeLessThanOrEqual(c.totalVotes);
+        expect(c.precinctsCounted).toBeLessThanOrEqual(c.precinctsTotal);
+      }
+    }
+  });
+});

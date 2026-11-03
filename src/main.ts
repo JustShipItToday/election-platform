@@ -1,7 +1,7 @@
 import '@fontsource-variable/bricolage-grotesque';
 import '@fontsource-variable/figtree';
 import './styles.css';
-import { DatasetSchema, CallsFileSchema } from './data/schema';
+import { DatasetSchema, CallsFileSchema, OfficialSchema } from './data/schema';
 import { ctx, esc, initWorking, onChange, phase, emit } from './ctx';
 import { initSimulation, startClockSync, now } from './domain/clock';
 import { FORECAST_CLOSES_AT_MS } from './domain/lifecycle';
@@ -104,6 +104,9 @@ async function load(): Promise<void> {
     fetch(`${base}data/calls.json`, { cache: 'no-cache' }).then((x) => x.json()),
     fetch(`${base}data/districts-meta.json`).then((x) => x.json()).catch(() => ({ redrawnStates: [] })),
   ]);
+  const off = await fetch(`${base}data/official.json`, { cache: 'no-cache' }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  const parsedOff = OfficialSchema.safeParse(off);
+  ctx.official = parsedOff.success ? parsedOff.data : null;
   ctx.redrawn = new Set<string>((dm as { redrawnStates?: string[] }).redrawnStates ?? []);
   ctx.data = DatasetSchema.parse(d);
   ctx.calls = CallsFileSchema.parse(c);

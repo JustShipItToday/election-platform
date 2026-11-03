@@ -43,6 +43,9 @@ jobs:
       - name: Refresh ratings, past results and candidate profiles (keeps the last committed file if it times out)
         run: timeout 600 npm run research
         continue-on-error: true
+      - name: Refresh official state tallies (North Carolina)
+        run: timeout 120 npm run official
+        continue-on-error: true
       - uses: actions/cache/save@v4
         if: always()
         with:
