@@ -1,0 +1,30 @@
+{
+  "name": "elecia",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Elecia: a free, static 2026 U.S. election forecasting and endorsing app.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "data": "tsx pipeline/build-data.ts"
+  },
+  "dependencies": {
+    "maplibre-gl": "^6.16.0",
+    "topojson-client": "^3.1.0",
+    "us-atlas": "^3.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^26.6.6",
+    "@types/topojson-client": "^3.1.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.1.0"
+  }
+}
