@@ -163,6 +163,56 @@ export function resultsPage(): string {
 }
 
 // ---------------- reconcile ----------------
+let recChamber: Chamber = 'senate';
+let recView: 'forecast' | 'endorse' | 'diff' = 'diff';
+
+function recControls(): string {
+  const b = (action: string, val: string, label: string, on: boolean) => `<button class="seg ${on ? 'on' : ''}" data-action="${action}" data-val="${val}" aria-pressed="${on}">${label}</button>`;
+  return `<div class="toolbar"><div class="seggroup" role="group" aria-label="Chamber">${b('rec-chamber', 'senate', 'Senate', recChamber === 'senate')}${b('rec-chamber', 'house', 'House', recChamber === 'house')}${b('rec-chamber', 'governor', 'Governors', recChamber === 'governor')}</div>
+  <div class="seggroup" role="group" aria-label="Map view">${b('rec-view', 'forecast', 'What I forecast', recView === 'forecast')}${b('rec-view', 'endorse', 'What I want', recView === 'endorse')}${b('rec-view', 'diff', 'Compared', recView === 'diff')}</div></div>`;
+}
+
+function paintRec(): void {
+  const f = picksFor('forecast');
+  const e = picksFor('endorse');
+  const stateMode = recChamber !== 'house';
+  const colors = new Map<string, StateColor>();
+  for (const r of ctx.data.races.filter((x) => x.chamber === recChamber)) {
+    const key = stateMode ? r.state : r.id;
+    const a = f.get(r.id), b = e.get(r.id);
+    if (recView === 'forecast' || recView === 'endorse') {
+      const p = recView === 'forecast' ? a : b;
+      colors.set(key, p ? { fill: colorVar(`--${p.party.toLowerCase()}`), label: p.party, title: `${r.label}: ${PARTY_NAME[p.party]}` } : { fill: colorVar('--uncalled'), label: '?', title: `${r.label}: not recorded` });
+    } else if (a && b) {
+      const same = a.candidateId === b.candidateId && a.party === b.party;
+      colors.set(key, same ? { fill: colorVar('--leaf'), label: '=', title: `${r.label}: forecast and choice are the same candidate` } : { fill: colorVar('--coral'), label: '≠', title: `${r.label}: forecast and choice differ` });
+    } else if (a) colors.set(key, { fill: colorVar('--sky'), label: 'F', title: `${r.label}: forecast only` });
+    else if (b) colors.set(key, { fill: colorVar('--sun'), label: 'W', title: `${r.label}: choice only` });
+    else colors.set(key, { fill: colorVar('--uncalled'), label: '', title: `${r.label}: neither recorded` });
+  }
+  paintMap(stateMode ? 'states' : 'districts', colors, null);
+}
+
+/** Called by the router after the Reconcile page HTML is in place. */
+export function mountReconcileMap(host: HTMLElement): void {
+  const slot = host.querySelector('#recmap');
+  if (!slot) return;
+  slot.appendChild(mapEl);
+  window.setTimeout(resizeMap, 30);
+  paintRec();
+}
+
+registerActions({
+  'rec-chamber': (el) => { recChamber = el.dataset['val'] as Chamber; refreshRec(); },
+  'rec-view': (el) => { recView = el.dataset['val'] as typeof recView; refreshRec(); },
+});
+
+function refreshRec(): void {
+  const c = document.getElementById('reccontrols');
+  if (c) c.innerHTML = recControls();
+  paintRec();
+}
+
 function ballotReconcile(): string {
   const bf = ballotPicks('forecast');
   const be = ballotPicks('endorse');
@@ -223,6 +273,10 @@ export function reconcilePage(): string {
   <h2>Where they differ</h2>
   ${diffRows.length ? `<div class="tablewrap"><table class="list"><thead><tr><th>Race</th><th>I forecast</th><th>I endorsed</th></tr></thead><tbody>${diffRows.join('')}</tbody></table></div>` : '<p class="muted">No races with different forecast and endorsement yet.</p>'}
   ${ballotReconcile()}
+  <h2>Side by side on the map</h2>
+  <div id="reccontrols">${recControls()}</div>
+  <div class="mapslot" id="recmap"></div>
+  <p class="muted small">Compared view: <strong>=</strong> same candidate in both, <strong>≠</strong> different, <strong>F</strong> forecast only, <strong>W</strong> (want) choice only. Differences are not mistakes; the two answer different questions. The list below the summary above has the same information as text.</p>
   <p class="row wrap"><a class="btn" href="#/2026/forecasting">Forecasting</a><a class="btn ghost" href="#/2026/endorsing">Endorsing</a></p></article>`;
 }
 

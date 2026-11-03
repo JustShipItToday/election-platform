@@ -30,9 +30,24 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Refresh data (keeps the last committed data if a source is down)
-        run: npm run data
+      # Wikipedia is rate-limited, so fetched pages are cached between runs. Each run saves what it fetched,
+      # even when it hits its time limit, so a cold start finishes over a few runs.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache
+          key: elecia-cache-${{ github.run_id }}
+          restore-keys: elecia-cache-
+      - name: Refresh races, nominees, polls and ballot measures (keeps the last committed data if a source is down)
+        run: timeout 600 npm run data
         continue-on-error: true
+      - name: Refresh ratings, past results and candidate profiles (keeps the last committed file if it times out)
+        run: timeout 600 npm run research
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache
+          key: elecia-cache-${{ github.run_id }}
       - name: Tests (includes data and calls.json guards)
         run: npm test
       - run: npm run build

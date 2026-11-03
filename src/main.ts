@@ -8,7 +8,7 @@ import { FORECAST_CLOSES_AT_MS } from './domain/lifecycle';
 import { installActionDelegation } from './ui/actions';
 import { setMapPickHandler, applyMapTheme } from './ui/map';
 import { mountFlow, onMapPick, refreshFlow } from './ui/flow';
-import { aboutPage, statusPage, blogPage, bannerHtml, closedPage, contactPage, reconcilePage, resultsPage, savedDetail, savedPage, setSavedRerender, termsPage } from './ui/pages';
+import { aboutPage, statusPage, mountReconcileMap, blogPage, bannerHtml, closedPage, contactPage, reconcilePage, resultsPage, savedDetail, savedPage, setSavedRerender, termsPage } from './ui/pages';
 import { maybePromptTour, wireTourDialog } from './ui/tour';
 import { tally } from './ui/mascots';
 
@@ -80,7 +80,7 @@ async function render(): Promise<void> {
     if (!open) { app.innerHTML = closedPage(); return; }
     mountFlow(app, r.endsWith('endorsing') ? 'endorse' : 'forecast');
     maybePromptTour();
-  } else if (r === '/2026/reconcile') app.innerHTML = reconcilePage();
+  } else if (r === '/2026/reconcile') { app.innerHTML = reconcilePage(); mountReconcileMap(app); }
   else if (r === '/2026/results') app.innerHTML = phase() === 'results' ? resultsPage() : closedPage();
   else if (r === '/2026/saved') {
     setSavedRerender(() => void savedPage(app));
