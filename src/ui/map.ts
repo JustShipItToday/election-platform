@@ -70,6 +70,7 @@ function geo(): FeatureCollection {
 export function initMap(handlers: { onPick: (usps: string) => void }): void {
   if (map) return;
   onPick = handlers.onPick;
+  maplibregl.setWorkerUrl(new URL('vendor/maplibre/maplibre-gl-worker.mjs', document.baseURI).href);
   const data = geo();
   map = new maplibregl.Map({
     container: mapEl,

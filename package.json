@@ -5,12 +5,14 @@
   "type": "module",
   "description": "Elecia: a free, static 2026 U.S. election forecasting and endorsing app.",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/copy-maplibre-worker.mjs && vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "data": "tsx pipeline/build-data.ts"
+    "data": "tsx pipeline/build-data.ts",
+    "prebuild": "node scripts/copy-maplibre-worker.mjs",
+    "pretest": "node scripts/copy-maplibre-worker.mjs"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
