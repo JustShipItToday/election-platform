@@ -146,7 +146,10 @@ export function parseRequest(text: string, data: Dataset, nowMs: number): Action
   }
 
   // news
-  if (/\b(news|reporting|headlines?|articles?|coverage|reported)\b/.test(t)) return { type: 'tool', name: 'search_news', input: {} };
+  if (/\b(news|reporting|headlines?|articles?|coverage|reported)\b/.test(t)) {
+    const r = pickRace(data, states, chambers);
+    return { type: 'tool', name: 'search_news', input: r ? { raceId: r.id } : {} };
+  }
 
   // new polling
   const recent = /\b(?:new|recent|latest|fresh)\b.{0,25}\b(poll|polling)\b.{0,30}\b(?:last|past|in the)\s+(\d+|[a-z]+)\s+(day|days|week|weeks)\b/.exec(t) ?? /\b(received|got|have|with)\b.{0,15}\b(new|recent)\b.{0,15}\b(poll|polling)\b.{0,30}\b(?:last|past)\s+(\d+|[a-z]+)\s+(day|days|week|weeks)\b/.exec(t);

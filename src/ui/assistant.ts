@@ -6,7 +6,8 @@ import { callTool, TOOLS, type ToolEnv, type ToolName, type ToolResult } from '.
 import { describeMethod, evaluatePolls, type PollMethod, type PollSettings } from '../domain/polling';
 import { describeScope, type Scope } from '../domain/scope';
 import type { Race } from '../data/schema';
-import { getResearch } from './research';
+import { getResearch, newsListHtml } from './research';
+import { fetchNews } from '../news/gdelt';
 import { registerActions } from './actions';
 
 /** What the assistant may ask the page to do. Writes go through the same gated functions as the buttons. */
@@ -25,6 +26,8 @@ interface Msg {
   who: 'you' | 'helper';
   text?: string;
   results?: ToolResult[];
+  /** Extra HTML appended after the results (for example live headlines). */
+  extraHtml?: string;
   undo?: { label: string; fn: () => void };
   chips?: string[];
 }
@@ -72,7 +75,7 @@ export function renderAssistant(el: HTMLElement): void {
     .map((m) =>
       m.who === 'you'
         ? `<div class="amsg you"><span class="sr">You: </span>${esc(m.text)}</div>`
-        : `<div class="amsg helper">${m.text ? `<p>${esc(m.text)}</p>` : ''}${(m.results ?? []).map(resultHtml).join('')}${m.chips ? `<p class="chips">${m.chips.map((c) => `<button class="chipbtn" data-action="asst-example" data-q="${esc(c)}">${esc(c)}</button>`).join('')}</p>` : ''}${m.undo ? `<button class="link" data-action="asst-undo">${esc(m.undo.label)}</button>` : ''}</div>`,
+        : `<div class="amsg helper">${m.text ? `<p>${esc(m.text)}</p>` : ''}${(m.results ?? []).map(resultHtml).join('')}${m.extraHtml ?? ''}${m.chips ? `<p class="chips">${m.chips.map((c) => `<button class="chipbtn" data-action="asst-example" data-q="${esc(c)}">${esc(c)}</button>`).join('')}</p>` : ''}${m.undo ? `<button class="link" data-action="asst-undo">${esc(m.undo.label)}</button>` : ''}</div>`,
     )
     .join('');
   el.innerHTML = `<section class="asst" aria-label="Research helper">
@@ -114,7 +117,17 @@ export function ask(text: string): void {
   const intent = classify(text);
   if (intent === 'extraction') push({ who: 'helper', text: REFUSAL_EXTRACTION });
   else if (intent === 'advice') push({ who: 'helper', text: REFUSAL_ADVICE });
-  else push(respond(parseRequest(text, ctx.data, now())));
+  else {
+    const msg = respond(parseRequest(text, ctx.data, now()));
+    push(msg);
+    const live = msg.results?.find((r) => r.liveNews);
+    const race = live ? ctx.data.races.find((r) => r.id === live.liveNews!.raceId) : undefined;
+    if (race) {
+      fetchNews(race)
+        .then((r) => { msg.extraHtml = newsListHtml(r.items, r.url, r.cached); if (host) renderAssistant(host); })
+        .catch(() => { msg.extraHtml = '<p class="muted small">The news service is busy or unreachable. Try again in a few seconds.</p>'; if (host) renderAssistant(host); });
+    }
+  }
   if (host) renderAssistant(host);
 }
 

@@ -1,0 +1,55 @@
+{
+ "articles": [
+  {
+   "url": "https://www.ksmu.org/2026-11-03/messy-divided-and-scary-swing-voters-rate-the-country-ahead-of-election-day",
+   "url_mobile": "https://www.ksmu.org/2026-11-03/messy-divided-and-scary-swing-voters-rate-the-country-ahead-of-election-day?_amp=true",
+   "title": "  Messy ,  divided  and  scary : swing voters rate the country ahead of Election Day",
+   "seendate": "20261103T111500Z",
+   "socialimage": "http://npr-brightspot.s3.amazonaws.com/20/ba/6feeba4c433ab796c270333e4aed/11-3-2026-swing-shift.png",
+   "domain": "ksmu.org",
+   "language": "English",
+   "sourcecountry": "United States"
+  },
+  {
+   "url": "https://www.aspenpublicradio.org/2026-11-03/messy-divided-and-scary-swing-voters-rate-the-country-ahead-of-election-day",
+   "url_mobile": "",
+   "title": "  Messy ,  divided  and  scary : swing voters rate the country ahead of Election Day",
+   "seendate": "20261103T111500Z",
+   "socialimage": "http://npr-brightspot.s3.amazonaws.com/20/ba/6feeba4c433ab796c270333e4aed/11-3-2026-swing-shift.png",
+   "domain": "aspenpublicradio.org",
+   "language": "English",
+   "sourcecountry": "United States"
+  },
+  {
+   "url": "https://washingtonmonthly.com/2026/11/03/maybe-the-republican-fever-will-finally-break-this-time/",
+   "url_mobile": "",
+   "title": "Maybe the Republican Fever Will Finally Break This Time",
+   "seendate": "20261103T111500Z",
+   "socialimage": "https://i0.wp.com/washingtonmonthly.com/wp-content/uploads/2026/11/AP26306189312561-scaled.jpg?fit=2560%2C1794&ssl=1",
+   "domain": "washingtonmonthly.com",
+   "language": "English",
+   "sourcecountry": "United States"
+  },
+  {
+   "url": "https://www.ksfr.org/npr-news/2026-11-03/messy-divided-and-scary-swing-voters-rate-the-country-ahead-of-election-day",
+   "url_mobile": "https://www.ksfr.org/npr-news/2026-11-03/messy-divided-and-scary-swing-voters-rate-the-country-ahead-of-election-day?_amp=true",
+   "title": "  Messy ,  divided  and  scary : swing voters rate the country ahead of Election Day",
+   "seendate": "20261103T111500Z",
+   "socialimage": "http://npr-brightspot.s3.amazonaws.com/20/ba/6feeba4c433ab796c270333e4aed/11-3-2026-swing-shift.png",
+   "domain": "ksfr.org",
+   "language": "English",
+   "sourcecountry": "United States"
+  },
+  {
+   "url": "https://www.news8000.com/news/politics/national-politics/midterm-elections-coming-to-a-close-as-voters-pass-judgment-on-trumps-second-term/article_aacd17b2-93f5-5949-be6b-d8059e3628e7.html",
+   "url_mobile": "",
+   "title": "Midterm elections coming to a close as voters pass judgment on Trump second term",
+   "seendate": "20261103T111500Z",
+   "socialimage": "https://bloximages.newyork1.vip.townnews.com/news8000.com/content/tncms/assets/v3/editorial/3/23/32320eab-c686-4a9b-92ee-981da819879c/6ae9a99640d25.image.jpg?crop=1414%2C742%2C0%2C97",
+   "domain": "news8000.com",
+   "language": "English",
+   "sourcecountry": "United States"
+  }
+ ],
+ "_fixture": "Labeled fixture: a real GDELT DOC 2.0 response captured 2026-11-03 for the query \"Jon Ossoff\" sourcelang:english, timespan 3d."
+}

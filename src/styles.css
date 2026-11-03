@@ -228,3 +228,5 @@ table.fixed td, table.fixed th { white-space: nowrap; overflow: hidden; text-ove
 .chipbtn { font: inherit; font-size: 0.82rem; padding: 4px 10px; border-radius: 99px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; text-align: left; }
 .chipbtn:hover { border-color: var(--leaf); }
 .aform { display: flex; gap: 6px; } .aform input { flex: 1; min-width: 0; font: inherit; padding: 7px 9px; border-radius: 9px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); }
+
+.newslist { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 8px; } .newslist li { padding-bottom: 6px; border-bottom: 1px solid var(--line); }

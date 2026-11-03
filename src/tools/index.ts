@@ -21,6 +21,8 @@ export interface ToolResult {
   source: string;
   retrievedAt: string;
   display: Display;
+  /** Set when the page should fetch live headlines for this race (the tool itself stays pure). */
+  liveNews?: { raceId: string };
   /** Present only for tools that propose a change the user must see. */
   proposal?: { kind: 'picks'; picks: { raceId: string; candidateId: string; party: Party }[] };
 }
@@ -360,11 +362,18 @@ const save_user_prediction: Tool<{ raceId: string; candidateId: string | null; p
   },
 };
 
-const search_news: Tool<Record<string, never>> = {
+const search_news: Tool<{ raceId?: string }> = {
   name: 'search_news',
-  description: 'Recent reporting about a race.',
-  input: z.object({}),
-  run: (env) => mk(env, 'search_news', 'news', 'not available in this release', { title: 'News search', lines: ['News search is not available in this release, so no headlines are shown. The race research section links to each race’s Wikipedia page, which cites recent reporting.'] }),
+  description: 'Recent reporting about a race (headline, publisher, date, link only).',
+  input: z.object({ raceId: raceIdSchema.optional() }),
+  run: (env, i) => {
+    const r = i.raceId ? env.data.races.find((x) => x.id === i.raceId) : undefined;
+    const res = mk(env, 'search_news', 'news', 'GDELT, live', r
+      ? { title: `Recent reporting: ${r.label}`, lines: ['Looking up headlines from the last 7 days…'] }
+      : { title: 'News search', lines: ['Name a state and a race, for example "Find recent reporting about the Georgia Senate race".'] });
+    if (r) res.liveNews = { raceId: r.id };
+    return res;
+  },
 };
 
 export const TOOLS = {

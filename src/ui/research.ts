@@ -1,5 +1,7 @@
 import type { Candidate, Race, Research } from '../data/schema';
 import { ctx, esc, PARTY_NAME } from '../ctx';
+import { fetchNews, type NewsItem } from '../news/gdelt';
+import { registerActions } from './actions';
 
 let research: Research | null = null;
 let loading: Promise<void> | null = null;
@@ -100,12 +102,45 @@ function candidatesHtml(race: Race): string {
   return `<details class="rsec"><summary>About the candidates</summary>${cards}</details>`;
 }
 
+const newsHtmlByRace = new Map<string, string>();
+
+export function newsListHtml(items: NewsItem[], url: string, cached: boolean): string {
+  if (!items.length) return '<p class="muted">No headlines about these candidates were found in the last 7 days.</p>';
+  return `<ul class="newslist">${items
+    .map((n) => `<li><a href="${esc(n.url)}" target="_blank" rel="noopener noreferrer">${esc(n.title)}</a><br><span class="muted small">${esc(n.publisher)} · ${esc(n.seenAt.slice(0, 16).replace('T', ' '))} UTC</span></li>`)
+    .join('')}</ul><p class="muted small">Found by <a href="${esc(url.replace('mode=artlist&format=json', 'mode=artlist'))}" target="_blank" rel="noopener noreferrer">GDELT</a>${cached ? ' (shown from the last 15 minutes)' : ''}. These are news reports, not facts established by Elecia, and are separate from polls and records.</p>`;
+}
+
+function newsHtml(race: Race): string {
+  return `<details class="rsec"><summary>Recent news reporting</summary>
+    <p class="muted small">Headlines about the candidates from the last 7 days. Headline, publisher, date and link only; Elecia does not summarize or vouch for them.</p>
+    <button class="btn small" data-action="news-load" data-race="${esc(race.id)}">Load recent news</button>
+    <div class="newsout" id="news-${esc(race.id)}" aria-live="polite">${newsHtmlByRace.get(race.id) ?? ''}</div></details>`;
+}
+
+registerActions({
+  'news-load': async (el) => {
+    const race = ctx.data.races.find((r) => r.id === el.dataset['race']);
+    const out = race ? document.getElementById(`news-${race.id}`) : null;
+    if (!race || !out) return;
+    out.innerHTML = '<p class="muted">Looking up headlines…</p>';
+    try {
+      const r = await fetchNews(race);
+      const html = newsListHtml(r.items, r.url, r.cached);
+      newsHtmlByRace.set(race.id, html);
+      out.innerHTML = html;
+    } catch {
+      out.innerHTML = '<p class="muted">The news service is busy or unreachable. Try again in a few seconds.</p>';
+    }
+  },
+});
+
 /** Research sections for a race card. Each is a separate, labeled category. */
 export function researchSections(race: Race): string {
   ensureResearch();
   if (missing) return '';
   if (!research) return `<p class="muted small">Loading research context…</p>`;
-  return `<div class="research"><h3 class="side-h">Research this race</h3>${candidatesHtml(race)}${ratingsHtml(race)}${historyHtml(race)}</div>`;
+  return `<div class="research"><h3 class="side-h">Research this race</h3>${candidatesHtml(race)}${ratingsHtml(race)}${historyHtml(race)}${newsHtml(race)}</div>`;
 }
 
 void ctx;
