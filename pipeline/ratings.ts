@@ -13,8 +13,8 @@ const LEVEL: Record<string, string> = { Tossup: 'Toss-up', 'Toss-up': 'Toss-up',
 export function ratingText(tpl: string): string {
   const parts = tpl.replace(/^\{\{\s*USRaceRating\s*\|?/i, '').replace(/\}\}\s*$/, '').split('|').map((x) => x.trim()).filter(Boolean);
   if (!parts.length) return '';
-  const flip = parts.includes('flip');
-  const core = parts.filter((x) => x !== 'flip').map((x) => LEVEL[x] ?? x);
+  const flip = parts.some((x) => x.toLowerCase() === 'flip');
+  const core = parts.filter((x) => x.toLowerCase() !== 'flip').map((x) => LEVEL[x] ?? x);
   return `${core.join(' ')}${flip ? ' (flip)' : ''}`;
 }
 

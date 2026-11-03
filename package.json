@@ -30,6 +30,7 @@
     "@types/topojson-client": "^3.1.5",
     "@types/topojson-server": "^3.0.4",
     "@types/topojson-simplify": "^3.0.3",
+    "axe-core": "^4.14.0",
     "fflate": "^0.8.3",
     "shapefile": "^0.6.6",
     "topojson-server": "^3.0.1",

@@ -3,7 +3,7 @@ import type { Party, Race, SourceRef } from '../src/data/schema';
 import { STATES } from '../src/data/states';
 import { linkTarget, normalizeParty, parseInfoboxes, type Infobox } from './infobox';
 import { candidatesFrom, reportedFrom } from './race-parse';
-import { MIN, wikitext } from './wiki';
+import { DAY, MIN, wikitext } from './wiki';
 import { fullName, lastTerm, partyBucket, type Legislator } from './roster';
 
 const RACE_TTL = 12 * MIN;
@@ -35,14 +35,14 @@ interface Blob {
   text: string;
 }
 
-async function stateBlobs(stateName: string): Promise<Blob[]> {
+export async function stateBlobs(stateName: string, year = 2026): Promise<Blob[]> {
   const titles = [
-    `2026 United States House of Representatives elections in ${stateName}`,
-    `2026 United States House of Representatives election in ${stateName}`,
+    `${year} United States House of Representatives elections in ${stateName}`,
+    `${year} United States House of Representatives election in ${stateName}`,
   ];
   let page = null;
   for (const t of titles) {
-    page = await wikitext(t, RACE_TTL);
+    page = await wikitext(t, year === 2026 ? RACE_TTL : 7 * DAY);
     if (page) break;
   }
   if (!page) return [];
@@ -51,7 +51,7 @@ async function stateBlobs(stateName: string): Promise<Blob[]> {
   const subs = new Set<string>();
   for (const m of page.text.matchAll(/\{\{\s*main\s*\|\s*([^}|]*\(districts?[^)]*\))\s*\}\}/gi)) subs.add(m[1]!.trim());
   for (const t of subs) {
-    const sub = await wikitext(t, RACE_TTL);
+    const sub = await wikitext(t, year === 2026 ? RACE_TTL : 7 * DAY);
     if (sub) blobs.push({ title: sub.title, url: sub.url, text: sub.text });
   }
   return blobs;

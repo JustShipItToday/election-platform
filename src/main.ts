@@ -6,9 +6,9 @@ import { ctx, esc, initWorking, onChange, phase, emit } from './ctx';
 import { initSimulation, startClockSync, now } from './domain/clock';
 import { FORECAST_CLOSES_AT_MS } from './domain/lifecycle';
 import { installActionDelegation } from './ui/actions';
-import { initMap, applyMapTheme } from './ui/map';
+import { setMapPickHandler, applyMapTheme } from './ui/map';
 import { mountFlow, onMapPick, refreshFlow } from './ui/flow';
-import { aboutPage, blogPage, bannerHtml, closedPage, contactPage, reconcilePage, resultsPage, savedDetail, savedPage, setSavedRerender, termsPage } from './ui/pages';
+import { aboutPage, statusPage, blogPage, bannerHtml, closedPage, contactPage, reconcilePage, resultsPage, savedDetail, savedPage, setSavedRerender, termsPage } from './ui/pages';
 import { maybePromptTour, wireTourDialog } from './ui/tour';
 import { tally } from './ui/mascots';
 
@@ -50,7 +50,7 @@ function renderTop(route: string): void {
 }
 
 function renderFoot(): void {
-  document.getElementById('foot')!.innerHTML = `<p>Elecia is free and keeps your choices in your browser. Polls: <a href="https://votehub.com/polls/api/" target="_blank" rel="noopener noreferrer">VoteHub</a> (CC BY 4.0), each linked to its original source. Candidates: Wikipedia (CC BY-SA 4.0). Senate roster: congress-legislators. Map: U.S. Census Bureau. Not affiliated with any campaign or party.</p>`;
+  document.getElementById('foot')!.innerHTML = `<p><a href="#/status">Data status</a> · Elecia is free and keeps your choices in your browser. Polls: <a href="https://votehub.com/polls/api/" target="_blank" rel="noopener noreferrer">VoteHub</a> (CC BY 4.0), each linked to its original source. Candidates: Wikipedia (CC BY-SA 4.0). Senate roster: congress-legislators. Map: U.S. Census Bureau. Not affiliated with any campaign or party.</p>`;
 }
 
 function updateBanner(): void {
@@ -89,6 +89,7 @@ async function render(): Promise<void> {
     await savedDetail(app, decodeURIComponent(r.slice('/2026/saved/'.length)));
   } else if (r === '/about') app.innerHTML = aboutPage();
   else if (r === '/blog') app.innerHTML = blogPage();
+  else if (r === '/status') app.innerHTML = statusPage();
   else if (r === '/contact') app.innerHTML = contactPage();
   else if (r === '/terms') app.innerHTML = termsPage();
   else app.innerHTML = `<article class="page"><h1>Page not found</h1><p><a href="#/2026/forecasting">Go to Forecasting</a></p></article>`;
@@ -133,7 +134,7 @@ async function boot(): Promise<void> {
     return;
   }
   initWorking();
-  initMap({ onPick: onMapPick });
+  setMapPickHandler(onMapPick);
   window.addEventListener('hashchange', () => void render());
   const mq = window.matchMedia('(prefers-color-scheme: dark)');
   mq.addEventListener('change', () => applyMapTheme());

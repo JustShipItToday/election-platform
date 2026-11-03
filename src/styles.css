@@ -1,7 +1,7 @@
 /* Sunlit Greenhouse: warm daylight, leaf greens, citrus accents. Party colors are separate from brand and never carry meaning alone. */
 :root {
   --bg: #f7fbef; --surface: #ffffff; --band: #eaf5dc; --ink: #17302a; --muted: #4d6a60; --line: #cde0c0;
-  --leaf: #2f8f4e; --leaf-ink: #16623a; --leaf-soft: #7fd49b; --sun: #f4a81d; --sun-soft: #fff0c8; --sky: #2a8fa8; --sky-soft: #bfe6ef;
+  --leaf: #1f7a3f; --leaf-ink: #16623a; --leaf-soft: #7fd49b; --sun: #f4a81d; --sun-soft: #fff0c8; --sky: #2a8fa8; --sky-soft: #bfe6ef;
   --coral: #c9432d; --coral-soft: #fde4de;
   --d: #2563b0; --r: #c63d2f; --o: #7a4fb0; --uncalled: #d8d4c4; --no-race: #eceee4; --out-scope: #e3e6d8;
   --map-bg: #e6f3f5; --map-line: #7f917f; --owl: #6a5b8f; --owl-belly: #e9e2f6;

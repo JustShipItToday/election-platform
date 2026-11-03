@@ -7,7 +7,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { DatasetSchema, ResearchSchema, type CandidateProfile, type HistoryEntry, type Race, type Research } from '../src/data/schema';
 import { linkTarget, normalizeParty, parseInfobox } from './infobox';
-import { districtParts } from './house';
+import { districtParts, stateBlobs } from './house';
 import { parsePredictions } from './ratings';
 import { DAY, HOUR, wikitext, pageUrl } from './wiki';
 import { buildCandidateProfiles } from './profiles';
@@ -51,7 +51,41 @@ async function history(prevTitle: string | undefined, depth: number): Promise<Hi
   return out;
 }
 
-async function raceResearch(race: Race, houseCache: Map<string, ReturnType<typeof districtParts>>) {
+const pastHouse = new Map<string, Promise<{ title: string; url: string; parts: ReturnType<typeof districtParts> }[]>>();
+
+/** Per-district infoboxes from a past election's state page (and its district sub-pages). */
+function pastHousePages(stateName: string, year: number, seats: number) {
+  const key = `${year}:${stateName}`;
+  if (!pastHouse.has(key)) {
+    pastHouse.set(key, stateBlobs(stateName, year).then((blobs) => blobs.map((b) => ({ title: b.title, url: b.url, parts: districtParts(b.text, seats) }))));
+  }
+  return pastHouse.get(key)!;
+}
+
+async function houseHistory(race: Race, seats: number): Promise<HistoryEntry[]> {
+  const out: HistoryEntry[] = [];
+  for (const year of [2024, 2022]) {
+    const pages = await pastHousePages(race.stateName, year, seats);
+    for (const pg of pages) {
+      const hit = pg.parts.get(race.district ?? '');
+      if (!hit) continue;
+      const results: HistoryEntry['results'] = [];
+      for (let n = 1; n <= 6; n++) {
+        const raw = hit.box.get(`nominee${n}`) ?? hit.box.get(`candidate${n}`);
+        if (!raw) continue;
+        const partyRaw = hit.box.get(`party${n}`) ?? '';
+        results.push({ name: linkTarget(raw).display, party: normalizeParty(partyRaw), partyLabel: linkTarget(partyRaw).display || 'Unknown', votes: num(hit.box.get(`popular_vote${n}`)), pct: num(hit.box.get(`percentage${n}`)) });
+      }
+      if (results.length) {
+        out.push({ title: `${year} election, ${race.label} (district lines then in use)`, url: pg.url, results, retrievedAt: NOW });
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+async function raceResearch(race: Race, houseCache: Map<string, ReturnType<typeof districtParts>>, seatsByState: Map<string, number>) {
   const title = titleFromUrl(race.source.url);
   const page = title ? await wikitext(title, 6 * HOUR).catch(() => null) : null;
   if (!page) return { ratings: [], ratingsUrl: null, history: [] as HistoryEntry[] };
@@ -69,7 +103,7 @@ async function raceResearch(race: Race, houseCache: Map<string, ReturnType<typeo
     prev = pe ? linkTarget(pe).target ?? linkTarget(pe).display : undefined;
   }
   const ratings = parsePredictions(ratingsText);
-  const hist = await history(prev, race.chamber === 'house' ? 1 : 2);
+  const hist = race.chamber === 'house' ? await houseHistory(race, seatsByState.get(race.state) ?? 2) : await history(prev, 2);
   return { ratings, ratingsUrl: page.url, history: hist };
 }
 
@@ -79,10 +113,12 @@ async function main() {
   const races: Research['races'] = {};
   // House pages are shared by many districts; keep parsed parts per page.
   const houseCache = new Map<string, ReturnType<typeof districtParts>>();
+  const seatsByState = new Map<string, number>();
+  for (const r of ds.races) if (r.chamber === 'house') seatsByState.set(r.state, (seatsByState.get(r.state) ?? 0) + 1);
   let i = 0;
   for (const race of ds.races) {
     try {
-      races[race.id] = await raceResearch(race, houseCache);
+      races[race.id] = await raceResearch(race, houseCache, seatsByState);
     } catch (e) {
       warnings.push(`${race.id}: ${String(e).slice(0, 120)}`);
       races[race.id] = { ratings: [], ratingsUrl: null, history: [] };

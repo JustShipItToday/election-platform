@@ -6,6 +6,7 @@ import { dusk, sprig, tally } from './mascots';
 import { LIMITS, saveMap, type SavedMap } from '../storage';
 import { registerActions } from './actions';
 import { mapEl, paintMap, resizeMap, colorVar, type StateColor } from './map';
+import { getResearch } from './research';
 import type { Chamber, Party } from '../data/schema';
 
 const REPO = 'https://github.com/JustShipItToday/election-platform';
@@ -46,6 +47,32 @@ export function aboutPage(): string {
   <section><h2>What is not in this release</h2>
   <p>Accounts and the AI research assistant are not part of this release. Ballot questions are included for the statewide measures that Wikipedia lists for Nov 3, 2026, and they are always counted separately from the Senate, House and Governor totals. Your data lives only in this browser; clearing site data erases it, and Saved lets you export a file first. The project is open source at <a href="${REPO}" target="_blank" rel="noopener noreferrer">GitHub</a>.</p></section>
   </article>`;
+}
+
+export function statusPage(): string {
+  const m = ctx.data.meta;
+  const age = (iso: string) => { const mins = Math.max(0, Math.round((now() - Date.parse(iso)) / 60000)); return mins < 90 ? `${mins} min ago` : `${Math.round(mins / 60)} h ago`; };
+  const races = (c: string) => ctx.data.races.filter((r) => r.chamber === c);
+  const cov = (c: string) => { const rs = races(c); return `${rs.filter((r) => r.candidatesStatus === 'nominees').length} of ${rs.length}`; };
+  const polledRaces = new Set(ctx.data.polls.map((p) => p.raceId)).size;
+  const rs = getResearch();
+  return `<article class="page datastatus"><header class="pagehead">${tally(90)}<div><p class="eyebrow">Data status</p><h1>What this site knows, and how fresh it is</h1>
+  <p class="lede">Every number here comes from a cited source and is refreshed automatically. Gaps and parsing problems are listed instead of hidden.</p></div></header>
+  <section><h2>Freshness</h2><ul>
+    <li><strong>Races, nominees and polls:</strong> refreshed ${esc(formatInstant(Date.parse(m.generatedAt)))} (${esc(age(m.generatedAt))}). The scheduled refresh runs about every 15 minutes.</li>
+    <li><strong>Analyst ratings, past results and candidate profiles:</strong> ${rs ? `built ${esc(formatInstant(Date.parse(rs.generatedAt)))} (${esc(age(rs.generatedAt))})` : 'not loaded'}.</li>
+    <li><strong>Confirmed calls:</strong> ${ctx.calls.calls.length} race or measure call${ctx.calls.calls.length === 1 ? '' : 's'} confirmed${ctx.calls.updatedAt ? `, updated ${esc(formatInstant(Date.parse(ctx.calls.updatedAt)))}` : ''}.</li>
+    <li><strong>Server clock:</strong> ${clockState().trusted ? 'in sync with the web server' : 'not reachable, using your device clock'}.</li></ul></section>
+  <section><h2>Coverage</h2><div class="summary">
+    <div><b>${races('senate').length}</b><span>Senate races (${cov('senate')} with named nominees)</span></div>
+    <div><b>${races('house').length}</b><span>House districts (${cov('house')} with named nominees)</span></div>
+    <div><b>${races('governor').length}</b><span>Governor races (${cov('governor')} with named nominees)</span></div>
+    <div><b>${ctx.data.ballot.length}</b><span>statewide ballot questions</span></div>
+    <div><b>${ctx.data.polls.length}</b><span>polls, covering ${polledRaces} races</span></div></div>
+    <p class="muted small">House districts redrawn for 2026 (Census TIGER 2025 compared with 2026): ${ctx.redrawn.size ? [...ctx.redrawn].sort().join(', ') : 'unknown'}.</p></section>
+  <section><h2>Sources</h2><div class="tablewrap"><table class="list"><thead><tr><th>Source</th><th>License</th><th>Retrieved</th></tr></thead><tbody>${m.sources.map((s) => `<tr><td><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.name)}</a></td><td>${esc(s.license ?? '')}</td><td>${esc(s.retrievedAt.slice(0, 16).replace('T', ' '))} UTC</td></tr>`).join('')}
+    <tr><td>U.S. Census Bureau TIGER/Line 2026 (House districts), us-atlas (states)</td><td>Public domain</td><td>build time</td></tr></tbody></table></div></section>
+  <section><h2>Warnings from the last refresh</h2>${m.warnings.length || rs?.warnings.length ? `<ul>${[...m.warnings, ...(rs?.warnings ?? [])].slice(0, 60).map((w) => `<li class="small">${esc(w)}</li>`).join('')}</ul>` : '<p>No warnings.</p>'}</section></article>`;
 }
 
 export function contactPage(): string {
@@ -211,7 +238,7 @@ export async function savedPage(host: HTMLElement): Promise<void> {
   const list = all.filter((m) => m.kind === savedTab);
   const counts = { forecast: all.filter((m) => m.kind === 'forecast').length, prediction: all.filter((m) => m.kind === 'prediction').length };
   const canDelete = writable();
-  body.innerHTML = `<div class="seggroup" role="tablist"><button class="seg ${savedTab === 'forecast' ? 'on' : ''}" data-action="saved-tab" data-val="forecast">Forecast maps ${counts.forecast}/${LIMITS.forecast}</button><button class="seg ${savedTab === 'prediction' ? 'on' : ''}" data-action="saved-tab" data-val="prediction">Prediction maps ${counts.prediction}/${LIMITS.prediction}</button></div>
+  body.innerHTML = `<div class="seggroup" role="group" aria-label="Kind of saved map"><button class="seg ${savedTab === 'forecast' ? 'on' : ''}" data-action="saved-tab" data-val="forecast">Forecast maps ${counts.forecast}/${LIMITS.forecast}</button><button class="seg ${savedTab === 'prediction' ? 'on' : ''}" data-action="saved-tab" data-val="prediction">Prediction maps ${counts.prediction}/${LIMITS.prediction}</button></div>
   <p class="muted small">${savedTab === 'forecast' ? 'Forecast maps are named, frozen snapshots.' : 'Prediction maps are working saves and versions.'}</p>
   <div class="row wrap"><button class="btn small ghost" data-action="export-all">Export all as a file</button>
   <label class="btn small ghost">Import a file<input type="file" accept="application/json" data-action="import-file" data-on="change" hidden></label></div>
