@@ -98,10 +98,31 @@ export const MetaSchema = z.object({
 });
 export type Meta = z.infer<typeof MetaSchema>;
 
+export const BallotQuestionSchema = z.object({
+  id: z.string(),
+  state: z.string().length(2),
+  stateName: z.string(),
+  /** The measure's title as listed by the source. */
+  title: z.string(),
+  /** Short name such as "Alaska Measure 2" (the source article title), when there is one. */
+  measureName: z.string().nullable(),
+  origin: z.string(),
+  /** What a "yes" vote does, as written by the source. The source does not say what "no" does, so neither do we. */
+  yesMeans: z.string(),
+  /** On ballot, Approved, or Failed, as reported by the source. */
+  status: z.string(),
+  wikipediaTitle: z.string().nullable(),
+  /** Reported result once available. Not final until confirmed. */
+  reported: z.object({ yesPct: z.number().nullable(), noPct: z.number().nullable(), yesVotes: z.number().nullable(), noVotes: z.number().nullable() }),
+  source: SourceRefSchema,
+});
+export type BallotQuestion = z.infer<typeof BallotQuestionSchema>;
+
 export const DatasetSchema = z.object({
   meta: MetaSchema,
   races: z.array(RaceSchema),
   polls: z.array(PollSchema),
+  ballot: z.array(BallotQuestionSchema),
 });
 export type Dataset = z.infer<typeof DatasetSchema>;
 

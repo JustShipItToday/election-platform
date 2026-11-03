@@ -1,10 +1,10 @@
-import type { CallsFile, Dataset, Party, Race } from './data/schema';
+import type { BallotQuestion, CallsFile, Dataset, Party, Race } from './data/schema';
 import { evaluatePolls, DEFAULT_POLL_SETTINGS, type PollOutcome } from './domain/polling';
 import { partyOfPick, type Pick } from './domain/makeup';
-import { resolveScope, type Scope } from './domain/scope';
+import { resolveBallot, resolveScope, type Scope } from './domain/scope';
 import { canWrite, phaseAt, type Phase } from './domain/lifecycle';
 import { now } from './domain/clock';
-import { createIdbStore, loadWorking, saveWorking, type MapStore, type Working } from './storage';
+import { createIdbStore, loadWorking, saveWorking, type BallotCall, type MapStore, type Working } from './storage';
 
 export type Mode = 'forecast' | 'endorse';
 
@@ -15,6 +15,7 @@ const emptyWorking: Working = {
   pollSettings: DEFAULT_POLL_SETTINGS,
   scope: { include: [], exclude: [] },
   tourSeen: false,
+  ballot: { forecast: {}, endorse: {} },
 };
 
 const idb = createIdbStore();
@@ -86,6 +87,30 @@ export function scopeRaces(scope: Scope = ctx.working.scope): Race[] {
   const chamberRank = { senate: 0, house: 1, governor: 2 } as const;
   const num = (r: Race) => (r.district === null || r.district === 'AL' ? 0 : Number(r.district));
   return out.sort((a, b) => chamberRank[a.chamber] - chamberRank[b.chamber] || a.stateName.localeCompare(b.stateName) || num(a) - num(b));
+}
+
+export function scopeBallot(scope: Scope = ctx.working.scope): BallotQuestion[] {
+  return resolveBallot(scope, ctx.data).sort((a, b) => a.stateName.localeCompare(b.stateName) || a.title.localeCompare(b.title));
+}
+
+export function ballotPicks(mode: Mode): Record<string, BallotCall> {
+  ctx.working.ballot ??= { forecast: {}, endorse: {} };
+  return ctx.working.ballot[mode];
+}
+
+export function setBallotPick(mode: Mode, id: string, call: BallotCall): boolean {
+  if (!writable()) return false;
+  ballotPicks(mode)[id] = call;
+  ctx.working.deferred[mode] = ctx.working.deferred[mode].filter((x) => x !== id);
+  persist();
+  return true;
+}
+
+export function clearBallotPick(mode: Mode, id: string): boolean {
+  if (!writable()) return false;
+  delete ballotPicks(mode)[id];
+  persist();
+  return true;
 }
 
 export function picksFor(mode: Mode): Map<string, Pick> {

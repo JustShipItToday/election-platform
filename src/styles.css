@@ -196,3 +196,9 @@ dialog::backdrop { background: rgba(10, 25, 20, 0.55); }
   .mapslot { height: 340px; } .card { padding: 14px; } .tot b { font-size: 1.6rem; }
   .pagehead { gap: 10px; }
 }
+
+/* ballot yes/no chips */
+.chip.Y { background: var(--leaf); } .chip.N { background: var(--coral); }
+.listsearch { max-width: 360px; }
+table.fixed td, table.fixed th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; height: 44px; }
+.vlist { overflow: auto; }

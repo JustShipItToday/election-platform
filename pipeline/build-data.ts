@@ -17,6 +17,7 @@ import { deriveGovernorStates, deriveSenateRaces } from './races';
 import { loadGovernors } from './governors';
 import { loadRoster, lastTerm, fullName, partyBucket } from './roster';
 import { buildHouse } from './house';
+import { buildBallot } from './ballot';
 
 const NOW = new Date().toISOString();
 const warnings: string[] = [];
@@ -206,6 +207,9 @@ async function main() {
   }
   if (droppedNoMatch > 0) warnings.push(`${droppedNoMatch} VoteHub polls did not match two named nominees (for example primary polls) and are not shown.`);
 
+  const ballot = await buildBallot(NOW, warnings);
+  console.log('ballot measures', ballot.length);
+
   const voteHubSource: SourceRef = { name: 'VoteHub Polling API', url: 'https://api.votehub.com/polls', retrievedAt: NOW, license: "CC BY 4.0 (credit VoteHub and cite each poll's original source)" };
   const wikiSource: SourceRef = { name: 'Wikipedia (race lists, race pages, governors list)', url: 'https://en.wikipedia.org/wiki/2026_United_States_elections', retrievedAt: NOW, license: 'CC BY-SA 4.0' };
   const dataset: Dataset = {
@@ -237,6 +241,7 @@ async function main() {
     },
     races,
     polls,
+    ballot,
   };
   const parsed = DatasetSchema.parse(dataset);
   mkdirSync('public/data', { recursive: true });

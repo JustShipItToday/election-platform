@@ -1,5 +1,5 @@
-import type { Chamber, Party, Race } from '../data/schema';
-import { ctx, esc, emit, outcomeFor, persist, picksFor, raceById, scopeRaces, setPick, clearPick, toast, writable, PARTY_NAME, type Mode } from '../ctx';
+import type { BallotQuestion, Chamber, Party, Race } from '../data/schema';
+import { ctx, esc, emit, outcomeFor, persist, picksFor, raceById, scopeRaces, scopeBallot, ballotPicks, setBallotPick, clearBallotPick, setPick, clearPick, toast, writable, PARTY_NAME, type Mode } from '../ctx';
 import { describeMethod, type PollSettings } from '../domain/polling';
 import { computeMakeup, type ChamberMakeup, type Pick } from '../domain/makeup';
 import { createQueue, current, decide, defer, revisit, type QueueState } from '../domain/deferral';
@@ -11,14 +11,17 @@ import { mapEl, paintMap, resizeMap, flyToView, colorVar, type StateColor } from
 import { registerActions } from './actions';
 import { sprig, tally } from './mascots';
 
+type ViewChamber = Chamber | 'ballot';
+
 interface View {
-  chamber: Chamber;
+  chamber: ViewChamber;
+  focusBallotId: string | null;
   colorBy: 'picks' | 'polling';
   display: 'map' | 'list';
   focusRaceId: string | null;
   saveForm: boolean;
 }
-const view: View = { chamber: 'senate', colorBy: 'picks', display: 'map', focusRaceId: null, saveForm: false };
+const view: View = { chamber: 'senate', focusBallotId: null, colorBy: 'picks', display: 'map', focusRaceId: null, saveForm: false };
 let mode: Mode = 'forecast';
 let root: HTMLElement | null = null;
 const counters = new Map<string, number>();
@@ -28,9 +31,11 @@ let qs: QueueState = createQueue([]);
 const letter: Record<Party, string> = { D: 'D', R: 'R', O: 'O' };
 
 // ---------------- queue ----------------
+const isBallot = () => view.chamber === 'ballot';
+
 function syncQueue(): void {
-  const ids = scopeRaces().map((r) => r.id);
-  const picks = ctx.working[mode];
+  const ids = isBallot() ? scopeBallot().map((q) => q.id) : scopeRaces().map((r) => r.id);
+  const picks: Record<string, unknown> = isBallot() ? ballotPicks(mode) : ctx.working[mode];
   const deferredIds = ctx.working.deferred[mode].filter((id) => ids.includes(id) && !picks[id]);
   const pending = ids.filter((id) => !picks[id] && !deferredIds.includes(id));
   qs = {
@@ -41,13 +46,22 @@ function syncQueue(): void {
 }
 
 function takeCounters(q: QueueState): void {
-  counters.clear();
+  // Only touch the deck that was just acted on, so the race deck and the ballot deck keep their own waits.
+  for (const id of [...q.pending, ...q.done, ...q.deferred.map((d) => d.id)]) counters.delete(id);
   for (const d of q.deferred) counters.set(d.id, d.shownSince);
   // Persist so a reload does not reset how long an item has been waiting.
-  const kept = Object.fromEntries(Object.entries(ctx.working.counters ?? {}).filter(([k]) => !k.startsWith(`${mode}:`)));
-  for (const [id, n] of counters) kept[`${mode}:${id}`] = n;
-  ctx.working.counters = kept;
+  const kept = Object.fromEntries([...counters].map(([id, n]) => [`${mode}:${id}`, n]));
+  ctx.working.counters = { ...Object.fromEntries(Object.entries(ctx.working.counters ?? {}).filter(([k]) => !k.startsWith(`${mode}:`))), ...kept };
   persist();
+}
+
+function currentBallot(): BallotQuestion | undefined {
+  if (view.focusBallotId) {
+    const q = ctx.data.ballot.find((x) => x.id === view.focusBallotId);
+    if (q) return q;
+  }
+  const id = current(qs);
+  return id ? ctx.data.ballot.find((x) => x.id === id) : undefined;
 }
 
 function currentRace(): Race | undefined {
@@ -96,7 +110,7 @@ function renderAll(): void {
   paint();
 }
 
-const CHAMBER_NAME: Record<Chamber, string> = { senate: 'Senate', house: 'House', governor: 'Governors' };
+const CHAMBER_NAME: Record<ViewChamber, string> = { senate: 'Senate', house: 'House', governor: 'Governors', ballot: 'Ballot questions' };
 
 function renderToolbar(): void {
   const el = root?.querySelector('#toolbar');
@@ -104,8 +118,8 @@ function renderToolbar(): void {
   const btn = (action: string, val: string, label: string, on: boolean) =>
     `<button class="seg ${on ? 'on' : ''}" data-action="${action}" data-val="${val}" aria-pressed="${on}">${label}</button>`;
   el.innerHTML = `
-    <div class="seggroup" role="group" aria-label="Chamber">${(['senate', 'house', 'governor'] as Chamber[]).map((c) => btn('chamber', c, CHAMBER_NAME[c], view.chamber === c)).join('')}</div>
-    ${mode === 'forecast' ? `<div class="seggroup" role="group" aria-label="Color the map by">${btn('colorby', 'picks', 'My calls', view.colorBy === 'picks')}${btn('colorby', 'polling', 'Polling lean', view.colorBy === 'polling')}</div>` : ''}
+    <div class="seggroup" role="group" aria-label="Chamber">${(['senate', 'house', 'governor', 'ballot'] as ViewChamber[]).map((c) => btn('chamber', c, CHAMBER_NAME[c], view.chamber === c)).join('')}</div>
+    ${mode === 'forecast' && !isBallot() ? `<div class="seggroup" role="group" aria-label="Color the map by">${btn('colorby', 'picks', 'My calls', view.colorBy === 'picks')}${btn('colorby', 'polling', 'Polling lean', view.colorBy === 'polling')}</div>` : ''}
     <div class="seggroup" role="group" aria-label="Display">${btn('display', 'map', 'Map', view.display === 'map')}${btn('display', 'list', 'List', view.display === 'list')}</div>
     ${view.display === 'map' ? `<div class="seggroup" role="group" aria-label="Jump to">${btn('fly', 'lower48', 'Lower 48', false)}${btn('fly', 'alaska', 'Alaska', false)}${btn('fly', 'hawaii', 'Hawaii', false)}</div>` : ''}`;
 }
@@ -122,7 +136,8 @@ function renderDisplay(): void {
   } else {
     mapslot.hidden = true;
     listslot.hidden = false;
-    renderList(listslot);
+    if (isBallot()) listslot.innerHTML = ballotListHtml();
+    else renderList(listslot);
   }
 }
 
@@ -171,7 +186,7 @@ function renderList(slot: HTMLElement): void {
   const q = listQuery.trim().toLowerCase();
   const rank = (r: Race) => (r.district === null ? 0 : r.district === 'AL' ? 0 : Number(r.district));
   listRows = ctx.data.races
-    .filter((r) => r.chamber === view.chamber)
+    .filter((r) => r.chamber === (view.chamber as Chamber))
     .filter((r) => !q || [r.label, r.incumbentName ?? '', ...r.candidates.map((c) => c.name)].some((t) => t.toLowerCase().includes(q)))
     .sort((a, b) => a.stateName.localeCompare(b.stateName) || rank(a) - rank(b));
   slot.innerHTML = `<label class="field listsearch">Find a race <input id="listq" type="search" placeholder="State, district, or name" value="${esc(listQuery)}" data-action="list-search" data-on="input"></label>
@@ -189,8 +204,13 @@ function renderList(slot: HTMLElement): void {
 }
 
 export function paint(): void {
+  if (isBallot()) {
+    paintBallot();
+    return;
+  }
   const stateMode = view.chamber !== 'house';
-  const races = ctx.data.races.filter((r) => r.chamber === view.chamber);
+  const chamber = view.chamber as Chamber;
+  const races = ctx.data.races.filter((r) => r.chamber === chamber);
   const inScope = new Set(scopeRaces().map((r) => r.id));
   const picks = picksFor(mode);
   const colors = new Map<string, StateColor>();
@@ -211,7 +231,7 @@ export function paint(): void {
       else colors.set(key, { fill: colorVar('--uncalled'), label: '?', title: `${r.label}: not yet ${mode === 'forecast' ? 'called' : 'endorsed'}` });
     }
   }
-  const selected = cur && cur.chamber === view.chamber ? (stateMode ? cur.state : cur.id) : null;
+  const selected = cur && cur.chamber === chamber ? (stateMode ? cur.state : cur.id) : null;
   paintMap(stateMode ? 'states' : 'districts', colors, selected);
 }
 
@@ -231,6 +251,7 @@ function clauseHtml(c: Clause, i: number): string {
       <label class="cb"><input type="checkbox" data-action="clause-chamber" data-on="change" data-i="${i}" data-ch="senate" ${ch.includes('senate') ? 'checked' : ''}> Senate</label>
       <label class="cb"><input type="checkbox" data-action="clause-chamber" data-on="change" data-i="${i}" data-ch="governor" ${ch.includes('governor') ? 'checked' : ''}> Governors</label>
     </div>
+    <label class="cb"><input type="checkbox" data-action="clause-ballot" data-on="change" data-i="${i}" ${c.ballot === false ? '' : 'checked'}> Ballot questions</label>
     <details><summary>States ${c.states?.length ? `(${c.states.length} chosen)` : '(all)'}</summary><div class="stategrid">${grid}</div>
       <button class="link" data-action="clause-clear-states" data-i="${i}">Clear states</button></details>
     <label class="cb"><input type="checkbox" data-action="clause-haspoll" data-on="change" data-i="${i}" ${c.hasPolling ? 'checked' : ''}> Only races with polling</label>
@@ -310,6 +331,10 @@ function pct(n: number): string {
 function renderCard(): void {
   const el = root?.querySelector('#card');
   if (!el) return;
+  if (isBallot()) {
+    renderBallotCard(el);
+    return;
+  }
   const total = scopeRaces().length;
   const done = qs.done.length;
   const race = currentRace();
@@ -470,8 +495,8 @@ function renderMakeup(): void {
     const s = chamberMakeup('senate', picks, ids);
     const h = chamberMakeup('house', picks, ids);
     const g = chamberMakeup('governor', picks, ids);
-    el.innerHTML = `<h2 class="side-h">My 2026 forecast so far</h2><div class="makeup">${makeupHtml(s, 'Senate')}${makeupHtml(h, 'House')}${makeupHtml(g, 'Governors')}</div>
-      <p class="muted small">Ballot-question predictions are separate and never change these totals. They are not part of tonight's release.</p>`;
+    el.innerHTML = `<h2 class="side-h">My 2026 forecast so far</h2><div class="makeup">${makeupHtml(s, 'Senate')}${makeupHtml(h, 'House')}${makeupHtml(g, 'Governors')}${ballotSummaryHtml()}</div>
+      <p class="muted small">Ballot-question predictions are separate and never change the Senate, House or Governor totals.</p>`;
   } else {
     const count = (ch: Chamber) => {
       const c = { D: 0, R: 0, O: 0 };
@@ -481,9 +506,123 @@ function renderMakeup(): void {
     const s = count('senate');
     const h = count('house');
     const g = count('governor');
-    el.innerHTML = `<h2 class="side-h">My endorsements so far</h2><p>Senate: ${s.D} D, ${s.R} R, ${s.O} other · House: ${h.D} D, ${h.R} R, ${h.O} other · Governors: ${g.D} D, ${g.R} R, ${g.O} other.</p>
+    el.innerHTML = `<h2 class="side-h">My endorsements so far</h2><p>Senate: ${s.D} D, ${s.R} R, ${s.O} other · House: ${h.D} D, ${h.R} R, ${h.O} other · Governors: ${g.D} D, ${g.R} R, ${g.O} other.</p>${ballotSummaryHtml()}
       <p class="muted small">These are what you want, not what you expect. They never change your forecast.</p>`;
   }
+}
+
+// ---------------- ballot questions ----------------
+const bhistory: string[] = [];
+
+const ballotWord = (call: 'yes' | 'no') =>
+  mode === 'forecast' ? (call === 'yes' ? 'Yes wins' : 'No wins') : call === 'yes' ? 'Support' : 'Oppose';
+
+function ballotWikiLink(q: BallotQuestion): string {
+  return q.wikipediaTitle ? `https://en.wikipedia.org/wiki/${encodeURIComponent(q.wikipediaTitle.replace(/ /g, '_'))}` : q.source.url;
+}
+
+function renderBallotCard(el: Element): void {
+  const total = scopeBallot().length;
+  const done = qs.done.length;
+  const bar = `<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}" aria-label="Progress"><span style="width:${total ? (100 * done) / total : 0}%"></span></div>
+    <p class="muted small">${done} of ${total} ballot questions answered · ${qs.deferred.length} to come back to</p>`;
+  const deferred = qs.deferred.length
+    ? `<details class="deferred"><summary>Come back later (${qs.deferred.length})</summary><ul>${qs.deferred
+        .map((d) => `<li><button class="link" data-action="b-focus-deferred" data-id="${esc(d.id)}">${esc(ctx.data.ballot.find((b) => b.id === d.id)?.title ?? d.id)}</button></li>`)
+        .join('')}</ul></details>`
+    : '';
+  const q = currentBallot();
+  if (!q) {
+    el.innerHTML = `${bar}<div class="card done">${sprig(110)}<h2>${total === 0 ? 'No ballot questions in this scope' : 'Every ballot question in scope is answered'}</h2>
+      <p>${total === 0 ? 'Widen your scope in the sidebar, or turn on "Ballot questions" in a selection.' : 'You can still change any answer from the list view.'}</p></div>${deferred}${mode === 'forecast' ? saveHtml() : ''}`;
+    void refreshCounts();
+    return;
+  }
+  const pick = ballotPicks(mode)[q.id];
+  const ask = mode === 'forecast' ? 'Which way do you think the vote will go?' : 'How do you want to vote on this?';
+  const sub = mode === 'forecast' ? 'This is your prediction of the outcome. It never changes the Senate, House or Governor totals.' : 'This is your own choice, saved separately from any forecast.';
+  const btn = (call: 'yes' | 'no') => {
+    const label = mode === 'forecast' ? (call === 'yes' ? 'Yes vote wins' : 'No vote wins') : call === 'yes' ? 'Support (I would vote yes)' : 'Oppose (I would vote no)';
+    const hint = mode === 'forecast' ? (call === 'yes' ? 'The measure is approved' : 'The measure is rejected') : '';
+    return `<li class="cand ${pick === call ? 'chosen' : ''}"><button class="pickbtn ${call === 'yes' ? 'D' : 'R'}" data-action="b-pick" data-val="${call}" ${writable() ? '' : 'disabled'} aria-pressed="${pick === call}">
+      <span class="chip big ${call === 'yes' ? 'Y' : 'N'}">${call === 'yes' ? 'Y' : 'N'}</span><span class="cname">${label}${hint ? `<small>${hint}</small>` : ''}</span></button></li>`;
+  };
+  const rep = q.reported;
+  const reported = rep.yesPct !== null || q.status !== 'On ballot'
+    ? `<p class="status">Reported by Wikipedia (not independently verified): ${esc(q.status)}${rep.yesPct !== null ? ` · Yes ${rep.yesPct}%${rep.noPct !== null ? ` · No ${rep.noPct}%` : ''}` : ''}</p>`
+    : '';
+  el.innerHTML = `${bar}
+    <article class="card" aria-labelledby="race-title">
+      <p class="eyebrow">Ballot question · ${esc(q.stateName)} · ${esc(q.origin)}</p>
+      <h2 id="race-title">${esc(q.title)}</h2>
+      <p><strong>A yes vote would:</strong> ${esc(q.yesMeans)}</p>
+      <p class="muted small">Wording is the source's own summary. The source does not describe what a no vote does, so none is claimed here.</p>
+      <h3 class="q">${ask}</h3><p class="muted small">${sub}</p>
+      ${pick ? `<p class="mine">${mode === 'forecast' ? 'Your forecast' : 'Your choice'}: <strong>${ballotWord(pick)}</strong> <button class="link" data-action="b-clear">Clear</button></p>` : ''}
+      <ul class="cands">${btn('yes')}${btn('no')}</ul>
+      <p class="status">No polling for this measure is available from our poll source.</p>
+      ${reported}
+      <div class="actions">
+        <button class="btn later" data-action="b-later" ${writable() ? '' : 'disabled'}>Come back later</button>
+        ${bhistory.length ? '<button class="btn ghost" data-action="b-undo">Undo last</button>' : ''}
+      </div>
+      <p class="sources small muted"><span class="srctag">Measure</span> <a href="${esc(ballotWikiLink(q))}" target="_blank" rel="noopener noreferrer">Wikipedia</a> (CC BY-SA 4.0), retrieved ${esc(q.source.retrievedAt.slice(0, 16).replace('T', ' '))} UTC</p>
+    </article>
+    ${deferred}
+    ${mode === 'forecast' ? saveHtml() : ''}`;
+  void refreshCounts();
+}
+
+function ballotListHtml(): string {
+  const inScope = new Set(scopeBallot().map((q) => q.id));
+  const picks = ballotPicks(mode);
+  const rows = [...ctx.data.ballot]
+    .sort((a, b) => a.stateName.localeCompare(b.stateName) || a.title.localeCompare(b.title))
+    .map((q) => {
+      const p = picks[q.id];
+      return `<tr class="${inScope.has(q.id) ? '' : 'dim'}"><th scope="row">${esc(q.stateName)}</th><td>${esc(q.title)}</td>
+        <td>${p ? `<span class="chip ${p === 'yes' ? 'Y' : 'N'}">${p === 'yes' ? 'Y' : 'N'}</span> ${ballotWord(p)}` : '<span class="muted">not yet</span>'}</td>
+        <td><button class="link" data-action="b-focus" data-id="${esc(q.id)}">Open</button></td></tr>`;
+    })
+    .join('');
+  return `<p class="muted small">${ctx.data.ballot.length} statewide ballot questions on Nov 3, 2026.</p><div class="tablewrap" style="max-height:${VIEWPORT_H}px;overflow:auto"><table class="list"><caption class="sr">Ballot questions</caption>
+    <thead><tr><th>State</th><th>Question</th><th>${mode === 'forecast' ? 'Your forecast' : 'Your choice'}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function paintBallot(): void {
+  const picks = ballotPicks(mode);
+  const inScope = new Set(scopeBallot().map((q) => q.id));
+  const byState = new Map<string, BallotQuestion[]>();
+  for (const q of ctx.data.ballot) byState.set(q.state, [...(byState.get(q.state) ?? []), q]);
+  const colors = new Map<string, StateColor>();
+  for (const [state, list] of byState) {
+    const scoped = list.filter((q) => inScope.has(q.id));
+    const name = list[0]!.stateName;
+    if (!scoped.length) { colors.set(state, { fill: colorVar('--out-scope'), label: '·', title: `${name}: outside your scope` }); continue; }
+    const answered = scoped.filter((q) => picks[q.id]).length;
+    colors.set(state, { fill: answered === scoped.length ? colorVar('--leaf') : colorVar('--sky'), label: `${answered}/${scoped.length}`, title: `${name}: ${answered} of ${scoped.length} ballot questions answered` });
+  }
+  const cur = currentBallot();
+  paintMap('states', colors, cur ? cur.state : null);
+}
+
+function ballotSummaryHtml(): string {
+  const picks = ballotPicks(mode);
+  const list = scopeBallot();
+  let yes = 0, no = 0;
+  for (const q of list) { if (picks[q.id] === 'yes') yes += 1; else if (picks[q.id] === 'no') no += 1; }
+  const label = mode === 'forecast' ? `Yes wins ${yes} · No wins ${no}` : `Support ${yes} · Oppose ${no}`;
+  return `<div class="makeup-card"><h3>Ballot questions</h3><p><strong>${label}</strong> · ${list.length - yes - no} of ${list.length} not yet answered</p>
+    <p class="muted small">Counted on their own. They never change the Senate, House or Governor totals.</p></div>`;
+}
+
+function afterBallotDecision(id: string, nextQ: QueueState): void {
+  takeCounters(nextQ);
+  bhistory.push(id);
+  view.focusBallotId = null;
+  syncQueue();
+  emit();
+  renderAll();
 }
 
 // ---------------- saving ----------------
@@ -517,6 +656,7 @@ function buildMap(kind: 'prediction' | 'forecast', name: string, notes: string):
     pollSettings: structuredClone(ctx.working.pollSettings),
     methodText: describeMethod(ctx.working.pollSettings),
     picks: inScopePicks,
+    ballot: Object.fromEntries(Object.entries(ballotPicks('forecast')).filter(([id]) => scopeBallot().some((q) => q.id === id))),
     seats,
     aggregate: { senate: agg(s), house: agg(h), governor: agg(g) },
   };
@@ -546,8 +686,34 @@ function afterDecision(id: string, nextQ: QueueState): void {
 }
 
 registerActions({
+  'b-focus': (el) => { const q = ctx.data.ballot.find((x) => x.id === el.dataset['id']); if (!q) return; view.chamber = 'ballot'; view.focusBallotId = q.id; syncQueue(); renderAll(); root?.querySelector('#card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+  'b-focus-deferred': (el) => { const id = el.dataset['id']!; qs = revisit(qs, id); view.focusBallotId = id; renderAll(); },
+  'b-pick': (el) => {
+    if (!gate()) return;
+    const q = currentBallot();
+    if (!q) return;
+    syncQueue();
+    const next = decide(qs, q.id);
+    if (!setBallotPick(mode, q.id, el.dataset['val'] as 'yes' | 'no')) return;
+    afterBallotDecision(q.id, next);
+  },
+  'b-clear': () => { const q = currentBallot(); if (!q || !gate()) return; clearBallotPick(mode, q.id); syncQueue(); emit(); renderAll(); },
+  'b-later': () => {
+    if (!gate()) return;
+    const q = currentBallot();
+    if (!q) return;
+    syncQueue();
+    const next = defer(qs, q.id);
+    ctx.working.deferred[mode] = [...ctx.working.deferred[mode].filter((x) => x !== q.id), q.id];
+    persist();
+    toast('Saved for later. It will come back after about 20 more questions, or sooner if few are left.');
+    afterBallotDecision(q.id, next);
+    bhistory.pop();
+  },
+  'b-undo': () => { if (!gate()) return; const id = bhistory.pop(); if (!id) return; clearBallotPick(mode, id); syncQueue(); view.focusBallotId = id; emit(); renderAll(); },
+  'clause-ballot': (el) => mutateClause(Number(el.dataset['i']), (c) => { c.ballot = (el as HTMLInputElement).checked ? undefined : false; }),
   'list-search': (el) => { listQuery = (el as HTMLInputElement).value; const slot = root?.querySelector('#listslot') as HTMLElement | null; if (slot) { const pos = (el as HTMLInputElement).selectionStart; renderList(slot); const inp = slot.querySelector('#listq') as HTMLInputElement | null; inp?.focus(); if (inp && pos !== null) inp.setSelectionRange(pos, pos); } },
-  chamber: (el) => { view.chamber = el.dataset['val'] as Chamber; const c = currentRace(); if (c && c.chamber !== view.chamber) view.focusRaceId = null; renderToolbar(); renderDisplay(); paint(); },
+  chamber: (el) => { view.chamber = el.dataset['val'] as ViewChamber; view.focusRaceId = null; view.focusBallotId = null; syncQueue(); renderAll(); },
   colorby: (el) => { view.colorBy = el.dataset['val'] as View['colorBy']; renderToolbar(); paint(); renderDisplay(); },
   display: (el) => { view.display = el.dataset['val'] as View['display']; renderToolbar(); renderDisplay(); paint(); },
   fly: (el) => flyToView(el.dataset['val'] as 'lower48'),
@@ -556,6 +722,7 @@ registerActions({
     if (!r) return;
     view.focusRaceId = r.id;
     view.chamber = r.chamber;
+    syncQueue();
     renderAll();
     root?.querySelector('#card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   },
@@ -682,9 +849,18 @@ registerActions({
 /** Called by the router when the map is clicked. */
 export function onMapPick(key: string): void {
   if (!root || !root.querySelector('.flow')) return;
+  if (isBallot()) {
+    const picks = ballotPicks(mode);
+    const mine = scopeBallot().filter((q) => q.state === key);
+    const target = mine.find((q) => !picks[q.id]) ?? mine[0];
+    if (!target) return;
+    view.focusBallotId = target.id;
+    renderAll();
+    return;
+  }
   const r = key.startsWith('house-')
     ? ctx.data.races.find((x) => x.id === key)
-    : ctx.data.races.find((x) => x.chamber === view.chamber && x.state === key);
+    : ctx.data.races.find((x) => x.chamber === (view.chamber as Chamber) && x.state === key);
   if (!r) return;
   view.focusRaceId = r.id;
   renderAll();

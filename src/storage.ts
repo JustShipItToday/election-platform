@@ -30,6 +30,8 @@ export interface SavedMap {
   pollSettings: PollSettings;
   methodText: string;
   picks: Pick[];
+  /** Ballot-question calls in this map's scope (separate from picks and from the aggregate). */
+  ballot?: Record<string, BallotCall>;
   seats: SavedSeat[];
   aggregate: {
     senate: { holdover: Record<Party, number>; called: Record<Party, number>; total: Record<Party, number>; uncalled: number };
@@ -116,6 +118,8 @@ export async function saveMap(store: MapStore, map: SavedMap, nowMs: number): Pr
 // ---- Small settings/working state in localStorage (guarded) ----
 const KEY = 'elecia:v1';
 
+export type BallotCall = 'yes' | 'no';
+
 export interface Working {
   forecast: Record<string, Pick>;
   endorse: Record<string, Pick>;
@@ -123,6 +127,8 @@ export interface Working {
   pollSettings: PollSettings;
   scope: Scope;
   tourSeen: boolean;
+  /** Ballot-question choices. Kept apart from race picks so they can never reach chamber totals. */
+  ballot?: { forecast: Record<string, BallotCall>; endorse: Record<string, BallotCall> };
   /** How many items were shown since each deferred item was set aside, keyed `${mode}:${raceId}`. */
   counters?: Record<string, number>;
 }
@@ -140,6 +146,7 @@ export function loadWorking(fallback: Working): Working {
       scope: p.scope ?? fallback.scope,
       tourSeen: p.tourSeen ?? false,
       counters: p.counters ?? {},
+      ballot: p.ballot ?? { forecast: {}, endorse: {} },
     };
   } catch {
     return fallback;

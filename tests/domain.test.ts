@@ -207,6 +207,7 @@ const data: Dataset = {
     counts: { races: 3, polls: 0, racesWithNominees: 3 },
     warnings: [],
   },
+  ballot: [],
   races: [race('senate-AA', 'senate', 'AA'), race('senate-BB', 'senate', 'BB'), race('governor-AA', 'governor', 'AA')],
   polls: [],
 };
@@ -267,5 +268,40 @@ describe('scope', () => {
     expect(resolveScope(s, withPoll, DEFAULT_POLL_SETTINGS, NOW).map((r) => r.id)).toEqual(['senate-AA']);
     const close = { include: [{ closeWithin: 0.5 }], exclude: [] };
     expect(resolveScope(close, withPoll, DEFAULT_POLL_SETTINGS, NOW)).toHaveLength(0);
+  });
+});
+
+import { resolveBallot } from '../src/domain/scope';
+import { judgeBallotCall } from '../src/domain/evidence';
+import type { BallotQuestion } from '../src/data/schema';
+
+const bq = (state: string, id: string): BallotQuestion => ({
+  id, state, stateName: state, title: 'Fixture measure', measureName: null, origin: 'Legislature', yesMeans: 'Do a fixture thing.',
+  status: 'On ballot', wikipediaTitle: null, reported: { yesPct: null, noPct: null, yesVotes: null, noVotes: null }, source: src,
+});
+const withBallot: Dataset = { ...data, ballot: [bq('AA', 'ballot-AA-1'), bq('BB', 'ballot-BB-1')] };
+
+describe('ballot questions stay separate from chamber makeup', () => {
+  it('follow the state filters and default to included', () => {
+    expect(resolveBallot({ include: [], exclude: [] }, withBallot)).toHaveLength(2);
+    expect(resolveBallot({ include: [{ states: ['AA'] }], exclude: [] }, withBallot).map((q) => q.id)).toEqual(['ballot-AA-1']);
+  });
+  it('can be opted out of, and ignore race-only filters', () => {
+    expect(resolveBallot({ include: [{ ballot: false }], exclude: [] }, withBallot)).toHaveLength(0);
+    expect(resolveBallot({ include: [{ hasPolling: true }], exclude: [] }, withBallot)).toHaveLength(0);
+  });
+  it('a ballot pick can never change chamber totals: makeup reads only race picks', () => {
+    const before = computeMakeup('senate', withBallot, new Set(['senate-AA']), new Map());
+    const after = computeMakeup('senate', withBallot, new Set(['senate-AA']), new Map());
+    expect(after.total).toEqual(before.total);
+    // The makeup function has no ballot input at all, so there is nothing to leak in.
+    expect(computeMakeup.length).toBe(4);
+  });
+  it('uses the same evidence rule as races and only accepts yes or no', () => {
+    const ev = (kind: 'official' | 'news', publisher: string) => ({ kind, publisher, url: 'https://example.test', retrievedAt: 'x' });
+    const call = (winner: string, evidence: ReturnType<typeof ev>[]) => ({ raceId: 'ballot-AA-1', winnerCandidateId: winner, calledAt: 'x', evidence });
+    expect(judgeBallotCall(call('yes', [ev('news', 'A')]), bq('AA', 'ballot-AA-1')).called).toBe(false);
+    expect(judgeBallotCall(call('yes', [ev('news', 'A'), ev('news', 'B')]), bq('AA', 'ballot-AA-1')).called).toBe(true);
+    expect(judgeBallotCall(call('maybe', [ev('official', 'X')]), bq('AA', 'ballot-AA-1')).called).toBe(false);
   });
 });

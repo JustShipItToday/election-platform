@@ -1,0 +1,36 @@
+<!-- Labeled fixture: the Alaska section of Wikipedia "2026 United States ballot measures" captured on 2026-11-03 (CC BY-SA 4.0). -->
+===Alaska===
+{| class="wikitable"
+|-
+! Origin
+! Status
+! Measure
+! Description (Result of a "yes" vote)
+! Date
+! Yes
+! No
+|-
+| Citizens
+| style="background-color:#d4f4b4;" | Approved
+| [[2026 Alaska Measure 1|Alaska Establish Campaign Contribution Limits for State and Local Elections Initiative]]
+| Establish new campaign contribution limits for campaigns for state and local office, limiting an individual's max contributions in an election cycle to $2,000 to candidates, $4,000 for a joint-lieutenant governor ticket, or $5,000 for a political party, with political parties allowed to contribute up to $4,000 for candidates and $5,000 to other parties or political groups.<ref name=":2">{{cite web |title=Alaska Establish Campaign Contribution Limits for State and Local Elections Initiative (2026) |url=https://ballotpedia.org/Alaska_Establish_Campaign_Contribution_Limits_for_State_and_Local_Elections_Initiative_(2026) |website=Ballotpedia |access-date=14 August 2025}}</ref>
+| Aug{{nbsp}}18
+| style="background-color:#B6C8D9; text-align:center;" |'''117,962'''<br />'''72.20%'''
+| style="text-align:center;"| 45,418<br />27.80%
+|-
+| Citizens
+| style="background-color:#f8eaba;" | On ballot
+| [[2026 Alaska Measure 2|Repeal Alaska's electoral system of ranked-choice voting, nonpartisan blanket primaries, and campaign disclosure rules]]
+| Repeal [[2020 Alaska Measure 2|Alaska Measure 2]], eliminating the top-four primaries and [[ranked-choice voting]] general elections in Alaska, alongside the established campaign finance provisions requiring persons and entities contributing more than $2,000 derived from donations, contributions, dues, or gifts to disclose the true sources (as defined in law) of their political contributions.<ref name="Alaska Ranked Choice">{{cite web |title=Alaska Repeal Top-Four Ranked-Choice Voting Initiative (2026) |url=https://ballotpedia.org/Alaska_Repeal_Top-Four_Ranked-Choice_Voting_Initiative_(2026) |website=Ballotpedia |access-date=5 January 2026}}</ref>
+| Nov{{nbsp}}3
+| style="text-align:center;" colspan=2 | ''Awaiting official results''
+|-
+| Citizens
+| style="background-color:#f8eaba;" | On ballot
+| [[2026 Alaska Measure 3|Alaska Citizenship Voting Requirement Initiative]]
+| Require that only United States citizens may be qualified voters in Alaska elections.<ref>{{cite web |title=Alaska Citizenship Voting Requirement Initiative (2026) |url=https://ballotpedia.org/Alaska_Citizenship_Voting_Requirement_Initiative_(2026) |website=Ballotpedia |access-date=30 March 2026}}</ref>
+| Nov{{nbsp}}3
+| style="text-align:center;" colspan=2 | ''Awaiting official results''
+|-
+|}
+

@@ -1,4 +1,4 @@
-import type { Chamber, Dataset, Race } from '../data/schema';
+import type { BallotQuestion, Chamber, Dataset, Race } from '../data/schema';
 import { evaluatePolls, type PollSettings } from './polling';
 
 /**
@@ -15,6 +15,8 @@ export interface Clause {
   closeWithin?: number;
   /** Only races whose seat is currently held by this party. */
   seatHeldBy?: 'D' | 'R' | 'O';
+  /** Set to false to leave ballot questions out of this selection (default: included). */
+  ballot?: boolean;
 }
 
 export interface Scope {
@@ -49,6 +51,21 @@ export function resolveScope(scope: Scope, data: Dataset, settings: PollSettings
   });
 }
 
+/** Race-only filters (polling, party, explicit races) never apply to ballot questions. */
+const raceOnly = (c: Clause) => !!c.hasPolling || c.closeWithin !== undefined || !!c.seatHeldBy || !!c.raceIds;
+
+/**
+ * Which ballot questions are in scope. Ballot questions follow the state filters of each selection
+ * and are included by default; a selection can opt out with `ballot: false`.
+ */
+export function resolveBallot(scope: Scope, data: Dataset): BallotQuestion[] {
+  const fits = (c: Clause, q: BallotQuestion) => c.ballot !== false && !raceOnly(c) && (!c.states || c.states.includes(q.state));
+  return data.ballot.filter((q) => {
+    const included = scope.include.length === 0 || scope.include.some((c) => fits(c, q));
+    return included && !scope.exclude.some((c) => !c.chambers && fits(c, q));
+  });
+}
+
 /** Plain-English description of a scope, always shown back to the user. */
 export function describeScope(scope: Scope): string {
   if (scope.include.length === 0 && scope.exclude.length === 0) return 'All Senate, House and Governor races';
@@ -60,6 +77,7 @@ export function describeScope(scope: Scope): string {
     if (c.seatHeldBy) bits.push(`seat held by ${c.seatHeldBy === 'D' ? 'Democrats' : c.seatHeldBy === 'R' ? 'Republicans' : 'others'}`);
     if (c.hasPolling) bits.push('with polling');
     if (c.closeWithin !== undefined) bits.push(`polling margin within ${c.closeWithin} pts`);
+    if (c.ballot === false) bits.push('no ballot questions');
     return bits.length ? bits.join(' · ') : 'everything';
   };
   const inc = scope.include.length ? scope.include.map(part).join('  OR  ') : 'All races';

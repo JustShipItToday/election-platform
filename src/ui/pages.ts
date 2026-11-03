@@ -1,7 +1,7 @@
-import { ctx, esc, phase, picksFor, raceById, toast, writable, PARTY_NAME, LOCAL_ZONE, onChange } from '../ctx';
+import { ctx, esc, phase, picksFor, ballotPicks, raceById, toast, writable, PARTY_NAME, LOCAL_ZONE, onChange } from '../ctx';
 import { FORECAST_CLOSES_AT_MS, RESULTS_VISIBLE_AT_MS, countdown, formatInstant } from '../domain/lifecycle';
 import { now, clockState, isSimulated } from '../domain/clock';
-import { judgeCall } from '../domain/evidence';
+import { judgeBallotCall, judgeCall } from '../domain/evidence';
 import { dusk, sprig, tally } from './mascots';
 import { LIMITS, saveMap, type SavedMap } from '../storage';
 import { registerActions } from './actions';
@@ -44,7 +44,7 @@ export function aboutPage(): string {
   </ul>
   <p>When a source is missing something, Elecia says so instead of filling the gap.</p></section>
   <section><h2>What is not in this release</h2>
-  <p>Ballot questions, accounts, and the AI research assistant are not part of this release. Your data lives only in this browser; clearing site data erases it, and Saved lets you export a file first. The project is open source at <a href="${REPO}" target="_blank" rel="noopener noreferrer">GitHub</a>.</p></section>
+  <p>Accounts and the AI research assistant are not part of this release. Ballot questions are included for the statewide measures that Wikipedia lists for Nov 3, 2026, and they are always counted separately from the Senate, House and Governor totals. Your data lives only in this browser; clearing site data erases it, and Saved lets you export a file first. The project is open source at <a href="${REPO}" target="_blank" rel="noopener noreferrer">GitHub</a>.</p></section>
   </article>`;
 }
 
@@ -111,14 +111,51 @@ export function resultsPage(): string {
       return `<tr><th scope="row">${esc(r.label)}</th><td>${mine ? esc(mine) : '<span class="muted">none</span>'}</td><td>${result}</td><td>${verdict}</td><td>${rep}</td></tr>`;
     })
     .join('');
+  const bp = ballotPicks('forecast');
+  let bHit = 0, bMiss = 0, bPending = 0;
+  const ballotRows = [...ctx.data.ballot].sort((a, b) => a.stateName.localeCompare(b.stateName) || a.title.localeCompare(b.title)).map((q) => {
+    const v = judgeBallotCall(calls.get(q.id), q);
+    const mine = bp[q.id];
+    let verdict = '';
+    if (v.called) {
+      if (!mine) verdict = '<span class="muted">no forecast</span>';
+      else if (mine === v.winnerId) { bHit += 1; verdict = '<span class="ok">Matched</span>'; }
+      else { bMiss += 1; verdict = '<span class="warn">Different</span>'; }
+    } else if (mine) bPending += 1;
+    const rep = q.reported.yesPct !== null ? `${esc(q.status)} · Yes ${q.reported.yesPct}%${q.reported.noPct !== null ? ` · No ${q.reported.noPct}%` : ''} <span class="tag">unverified</span>` : `<span class="muted small">${esc(q.status)}</span>`;
+    return `<tr><th scope="row">${esc(q.stateName)}: ${esc(q.title)}</th><td>${mine ? (mine === 'yes' ? 'Yes wins' : 'No wins') : '<span class="muted">none</span>'}</td><td>${v.called ? `${v.winnerId === 'yes' ? 'Yes' : 'No'} <span class="muted small">(${esc(v.reason)})</span>` : '<span class="muted">Not called yet</span>'}</td><td>${verdict}</td><td>${rep}</td></tr>`;
+  }).join('');
   return `<article class="page results"><header class="pagehead">${tally(90)}<div><p class="eyebrow">Results</p><h1>Your forecast against what happened</h1>
   <p class="lede">A race counts as <strong>called</strong> only when an official source confirms it or two independent news sources agree. Anything else stays open.</p></div></header>
   <div class="summary"><div><b>${hit}</b><span>called and matched your forecast</span></div><div><b>${miss}</b><span>called and different</span></div><div><b>${pending}</b><span>forecast, not called yet</span></div><div><b>${unforecast}</b><span>called, no forecast from you</span></div></div>
   <p class="muted small">Calls updated ${esc(ctx.calls.updatedAt ? formatInstant(Date.parse(ctx.calls.updatedAt)) : 'not yet')} · Data refreshed ${esc(formatInstant(Date.parse(ctx.data.meta.generatedAt)))}. The "reported" column is read from each race's Wikipedia page and has not been independently verified.</p>
-  <div class="tablewrap"><table class="list"><thead><tr><th>Race</th><th>Your forecast</th><th>Called result</th><th>Compared</th><th>Reported by Wikipedia</th></tr></thead><tbody>${rows}</tbody></table></div></article>`;
+  <div class="tablewrap"><table class="list"><thead><tr><th>Race</th><th>Your forecast</th><th>Called result</th><th>Compared</th><th>Reported by Wikipedia</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <h2>Ballot questions (counted separately)</h2>
+  <p class="muted small">${bHit} matched · ${bMiss} different · ${bPending} forecast, not called yet. Ballot questions never affect the Senate, House or Governor comparison above.</p>
+  <div class="tablewrap"><table class="list"><thead><tr><th>Measure</th><th>Your forecast</th><th>Called result</th><th>Compared</th><th>Reported by Wikipedia</th></tr></thead><tbody>${ballotRows}</tbody></table></div></article>`;
 }
 
 // ---------------- reconcile ----------------
+function ballotReconcile(): string {
+  const bf = ballotPicks('forecast');
+  const be = ballotPicks('endorse');
+  let both = 0, same = 0, fOnly = 0, eOnly = 0;
+  const diffs: string[] = [];
+  for (const q of ctx.data.ballot) {
+    const a = bf[q.id], b = be[q.id];
+    if (a && b) {
+      both += 1;
+      if (a === b) same += 1;
+      else diffs.push(`<tr><th scope="row">${esc(q.stateName)}: ${esc(q.title)}</th><td>${a === 'yes' ? 'Yes wins' : 'No wins'}</td><td>${b === 'yes' ? 'Support' : 'Oppose'}</td></tr>`);
+    } else if (a) fOnly += 1;
+    else if (b) eOnly += 1;
+  }
+  return `<h2>Ballot questions</h2>
+  <p class="muted small">Counted on their own. "Same side" means you predicted Yes would win and would vote yes, or predicted No and would vote no.</p>
+  <div class="summary"><div><b>${both}</b><span>with both a forecast and a choice</span></div><div><b>${same}</b><span>same side</span></div><div><b>${both - same}</b><span>opposite sides</span></div><div><b>${fOnly}</b><span>forecast only</span></div><div><b>${eOnly}</b><span>choice only</span></div></div>
+  ${diffs.length ? `<div class="tablewrap"><table class="list"><thead><tr><th>Measure</th><th>I forecast</th><th>I would vote</th></tr></thead><tbody>${diffs.join('')}</tbody></table></div>` : ''}`;
+}
+
 export function reconcilePage(): string {
   const f = picksFor('forecast');
   const e = picksFor('endorse');
@@ -158,6 +195,7 @@ export function reconcilePage(): string {
   <div class="tablewrap"><table class="list matrix"><thead><tr><th></th><th>Forecast Democratic</th><th>Forecast Republican</th><th>Forecast Other</th></tr></thead><tbody>${mrows}</tbody></table></div>
   <h2>Where they differ</h2>
   ${diffRows.length ? `<div class="tablewrap"><table class="list"><thead><tr><th>Race</th><th>I forecast</th><th>I endorsed</th></tr></thead><tbody>${diffRows.join('')}</tbody></table></div>` : '<p class="muted">No races with different forecast and endorsement yet.</p>'}
+  ${ballotReconcile()}
   <p class="row wrap"><a class="btn" href="#/2026/forecasting">Forecasting</a><a class="btn ghost" href="#/2026/endorsing">Endorsing</a></p></article>`;
 }
 
@@ -204,7 +242,8 @@ export async function savedDetail(host: HTMLElement, id: string): Promise<void> 
   <div class="toolbar"><div class="seggroup"><button class="seg on" data-action="saved-chamber" data-val="senate" aria-pressed="true">Senate</button><button class="seg" data-action="saved-chamber" data-val="house" aria-pressed="false">House</button><button class="seg" data-action="saved-chamber" data-val="governor" aria-pressed="false">Governors</button></div></div>
   <div class="mapslot" id="savedmap"></div>
   <div class="makeup">${agg('Senate', m.aggregate.senate)}${m.aggregate.house ? agg('House', m.aggregate.house) : ''}${agg('Governors', m.aggregate.governor)}</div>
-  <div class="tablewrap"><table class="list"><thead><tr><th>Race</th><th>Call</th><th>Polling then</th>${showResults ? '<th>Compared with result</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div></article>`;
+  <div class="tablewrap"><table class="list"><thead><tr><th>Race</th><th>Call</th><th>Polling then</th>${showResults ? '<th>Compared with result</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>
+  ${m.ballot && Object.keys(m.ballot).length ? `<h2>Ballot questions (counted separately)</h2><div class="tablewrap"><table class="list"><thead><tr><th>Measure</th><th>Forecast</th></tr></thead><tbody>${Object.entries(m.ballot).map(([id, v]) => `<tr><th scope="row">${esc(ctx.data.ballot.find((b) => b.id === id)?.title ?? id)}</th><td>${v === 'yes' ? 'Yes wins' : 'No wins'}</td></tr>`).join('')}</tbody></table></div>` : ''}</article>`;
   const slot = host.querySelector('#savedmap') as HTMLElement;
   slot.appendChild(mapEl);
   window.setTimeout(resizeMap, 30);

@@ -55,3 +55,24 @@ describe('House district parsing (labeled fixture: real Maine sections)', () => 
     expect(districtBoxes(wt, 2).size).toBe(0);
   });
 });
+
+import { parseBallotMeasures, plain } from '../pipeline/ballot';
+
+describe('ballot measures parser (labeled fixture: real Alaska section)', () => {
+  const items = parseBallotMeasures(readFileSync('tests/fixtures/ballot-alaska-excerpt.wikitext', 'utf8'), '2026-11-03T00:00:00Z', 'https://example.test');
+  it('keeps only measures dated Nov 3 and skips the August one', () => {
+    expect(items.map((i) => i.measureName)).toEqual(['Alaska Measure 2', 'Alaska Measure 3']);
+  });
+  it('keeps the source wording of what a yes vote does and never invents a no-vote meaning', () => {
+    const m3 = items.find((i) => i.measureName === 'Alaska Measure 3')!;
+    expect(m3.yesMeans).toMatch(/^Require that only United States citizens/);
+    expect(Object.keys(m3)).not.toContain('noMeans');
+  });
+  it('reads status and leaves results empty while awaiting official results', () => {
+    expect(items[0]!.status).toBe('On ballot');
+    expect(items[0]!.reported).toEqual({ yesPct: null, noPct: null, yesVotes: null, noVotes: null });
+  });
+  it('plain() removes references, templates and links', () => {
+    expect(plain("A [[b|c]] d{{nbsp}}e<ref>x</ref> '''f'''")).toBe('A c d e f');
+  });
+});

@@ -1,12 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CallsFileSchema, DatasetSchema } from '../src/data/schema';
-import { judgeCall } from '../src/domain/evidence';
+import { judgeBallotCall, judgeCall } from '../src/domain/evidence';
 
 const dataset = DatasetSchema.parse(JSON.parse(readFileSync('public/data/dataset.json', 'utf8')));
 const calls = CallsFileSchema.parse(JSON.parse(readFileSync('public/data/calls.json', 'utf8')));
 
 describe('generated dataset', () => {
+  it('has statewide ballot measures with source wording', () => {
+    expect(dataset.ballot.length).toBeGreaterThan(50);
+    for (const q of dataset.ballot) { expect(q.yesMeans.length, q.id).toBeGreaterThan(10); expect(q.source.url).toMatch(/^https:/); }
+    expect(new Set(dataset.ballot.map((q) => q.id)).size).toBe(dataset.ballot.length);
+  });
   it('has 35 Senate, 435 House and 36 Governor races', () => {
     expect(dataset.races.filter((r) => r.chamber === 'senate')).toHaveLength(35);
     expect(dataset.races.filter((r) => r.chamber === 'house')).toHaveLength(435);
@@ -45,21 +50,23 @@ describe('generated dataset', () => {
 });
 
 describe('calls.json (hand-edited on election night)', () => {
-  it('only refers to real races and real candidates, once each', () => {
-    const races = new Map(dataset.races.map((r) => [r.id, r]));
+  const races = new Map(dataset.races.map((r) => [r.id, r]));
+  const ballots = new Map(dataset.ballot.map((b) => [b.id, b]));
+  it('only refers to real races, measures and candidates, once each', () => {
     const seen = new Set<string>();
     for (const c of calls.calls) {
-      const race = races.get(c.raceId);
-      expect(race, `unknown race ${c.raceId}`).toBeDefined();
+      expect(races.has(c.raceId) || ballots.has(c.raceId), `unknown race or measure ${c.raceId}`).toBe(true);
       expect(seen.has(c.raceId), `duplicate call for ${c.raceId}`).toBe(false);
       seen.add(c.raceId);
-      expect(race!.candidates.some((x) => x.id === c.winnerCandidateId), `winner not in race ${c.raceId}`).toBe(true);
+      const race = races.get(c.raceId);
+      if (race) expect(race.candidates.some((x) => x.id === c.winnerCandidateId), `winner not in race ${c.raceId}`).toBe(true);
     }
   });
   it('every listed call meets the evidence rule', () => {
-    const races = new Map(dataset.races.map((r) => [r.id, r]));
     for (const c of calls.calls) {
-      expect(judgeCall(c, races.get(c.raceId)!).called, `${c.raceId} lacks enough evidence`).toBe(true);
+      const race = races.get(c.raceId);
+      const v = race ? judgeCall(c, race) : judgeBallotCall(c, ballots.get(c.raceId)!);
+      expect(v.called, `${c.raceId} lacks enough evidence`).toBe(true);
     }
   });
 });
