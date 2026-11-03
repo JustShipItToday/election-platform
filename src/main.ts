@@ -98,10 +98,12 @@ async function render(): Promise<void> {
 // ---- data ----
 async function load(): Promise<void> {
   const base = import.meta.env.BASE_URL;
-  const [d, c] = await Promise.all([
+  const [d, c, dm] = await Promise.all([
     fetch(`${base}data/dataset.json`, { cache: 'no-cache' }).then((x) => x.json()),
     fetch(`${base}data/calls.json`, { cache: 'no-cache' }).then((x) => x.json()),
+    fetch(`${base}data/districts-meta.json`).then((x) => x.json()).catch(() => ({ redrawnStates: [] })),
   ]);
+  ctx.redrawn = new Set<string>((dm as { redrawnStates?: string[] }).redrawnStates ?? []);
   ctx.data = DatasetSchema.parse(d);
   ctx.calls = CallsFileSchema.parse(c);
 }

@@ -16,7 +16,7 @@ import { FIPS_TO_USPS } from '../src/data/states';
 import { getBuffer, getJson } from './http';
 
 const CACHE = '.cache/tiger';
-const verify = process.argv.includes('--verify');
+const verify = true; // always verify: it is cheap once the zips are cached and it feeds the redrawn-state notice
 
 async function zipFor(year: 2025 | 2026, fips: string): Promise<Uint8Array> {
   const cd = year === 2026 ? 'cd120' : 'cd119';
@@ -125,6 +125,14 @@ async function main() {
       rows.push({ state: usps, maxChange: max });
     }
     rows.sort((x, y) => y.maxChange - x.maxChange);
+    const redrawn = rows.filter((r) => r.maxChange > 0.01).map((r) => r.state).sort();
+    writeFileSync('public/data/districts-meta.json', JSON.stringify({
+      source: 'U.S. Census Bureau TIGER/Line 2026, 120th Congress (tl_2026_SS_cd120)',
+      comparedWith: 'TIGER/Line 2025, 119th Congress',
+      redrawnStates: redrawn,
+      rule: 'A state counts as redrawn when any district land area changed by more than 1% between the two releases.',
+      verifiedAt: new Date().toISOString(),
+    }));
     console.log('Largest single-district land-area change, TIGER 2025 (119th) to TIGER 2026 (120th):');
     console.log(rows.map((r) => `${r.state} ${(r.maxChange * 100).toFixed(1)}%`).join('  '));
   }

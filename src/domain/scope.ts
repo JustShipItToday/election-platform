@@ -51,10 +51,10 @@ export function resolveScope(scope: Scope, data: Dataset, settings: PollSettings
 
 /** Plain-English description of a scope, always shown back to the user. */
 export function describeScope(scope: Scope): string {
-  if (scope.include.length === 0 && scope.exclude.length === 0) return 'All Senate and Governor races';
+  if (scope.include.length === 0 && scope.exclude.length === 0) return 'All Senate, House and Governor races';
   const part = (c: Clause): string => {
     const bits: string[] = [];
-    if (c.chambers) bits.push(c.chambers.map((x) => (x === 'senate' ? 'Senate' : 'Governor')).join(' + '));
+    if (c.chambers) bits.push(c.chambers.map((x) => (x === 'senate' ? 'Senate' : x === 'house' ? 'House' : 'Governor')).join(' + '));
     if (c.states) bits.push(c.states.length > 6 ? `${c.states.length} states` : c.states.join(', '));
     if (c.raceIds) bits.push(`${c.raceIds.length} chosen race${c.raceIds.length === 1 ? '' : 's'}`);
     if (c.seatHeldBy) bits.push(`seat held by ${c.seatHeldBy === 'D' ? 'Democrats' : c.seatHeldBy === 'R' ? 'Republicans' : 'others'}`);

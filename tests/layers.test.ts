@@ -53,7 +53,7 @@ function map(kind: 'prediction' | 'forecast', id: string): SavedMap {
   const agg = { holdover: z, called: z, total: z, uncalled: 0 };
   return {
     id, kind, name: id, notes: '', createdAt: 'x', dataAsOf: 'x', scopeText: '', scope: { include: [], exclude: [] },
-    pollSettings: DEFAULT_POLL_SETTINGS, methodText: '', picks: [], seats: [], aggregate: { senate: agg, governor: agg },
+    pollSettings: DEFAULT_POLL_SETTINGS, methodText: '', picks: [], seats: [], aggregate: { senate: agg, house: agg, governor: agg },
   };
 }
 describe('saved map limits and lifecycle gate', () => {

@@ -33,6 +33,7 @@ export interface SavedMap {
   seats: SavedSeat[];
   aggregate: {
     senate: { holdover: Record<Party, number>; called: Record<Party, number>; total: Record<Party, number>; uncalled: number };
+    house: { holdover: Record<Party, number>; called: Record<Party, number>; total: Record<Party, number>; uncalled: number };
     governor: { holdover: Record<Party, number>; called: Record<Party, number>; total: Record<Party, number>; uncalled: number };
   };
 }
@@ -122,7 +123,8 @@ export interface Working {
   pollSettings: PollSettings;
   scope: Scope;
   tourSeen: boolean;
-  aiNote?: never;
+  /** How many items were shown since each deferred item was set aside, keyed `${mode}:${raceId}`. */
+  counters?: Record<string, number>;
 }
 
 export function loadWorking(fallback: Working): Working {
@@ -137,6 +139,7 @@ export function loadWorking(fallback: Working): Working {
       pollSettings: p.pollSettings ?? fallback.pollSettings,
       scope: p.scope ?? fallback.scope,
       tourSeen: p.tourSeen ?? false,
+      counters: p.counters ?? {},
     };
   } catch {
     return fallback;

@@ -43,6 +43,11 @@ function syncQueue(): void {
 function takeCounters(q: QueueState): void {
   counters.clear();
   for (const d of q.deferred) counters.set(d.id, d.shownSince);
+  // Persist so a reload does not reset how long an item has been waiting.
+  const kept = Object.fromEntries(Object.entries(ctx.working.counters ?? {}).filter(([k]) => !k.startsWith(`${mode}:`)));
+  for (const [id, n] of counters) kept[`${mode}:${id}`] = n;
+  ctx.working.counters = kept;
+  persist();
 }
 
 function currentRace(): Race | undefined {
@@ -59,6 +64,8 @@ export function mountFlow(host: HTMLElement, m: Mode): void {
   root = host;
   mode = m;
   view.saveForm = false;
+  counters.clear();
+  for (const [k, n] of Object.entries(ctx.working.counters ?? {})) if (k.startsWith(`${m}:`)) counters.set(k.slice(m.length + 1), n);
   if (m === 'endorse') view.colorBy = 'picks';
   syncQueue();
   host.innerHTML = `
@@ -89,13 +96,15 @@ function renderAll(): void {
   paint();
 }
 
+const CHAMBER_NAME: Record<Chamber, string> = { senate: 'Senate', house: 'House', governor: 'Governors' };
+
 function renderToolbar(): void {
   const el = root?.querySelector('#toolbar');
   if (!el) return;
   const btn = (action: string, val: string, label: string, on: boolean) =>
     `<button class="seg ${on ? 'on' : ''}" data-action="${action}" data-val="${val}" aria-pressed="${on}">${label}</button>`;
   el.innerHTML = `
-    <div class="seggroup" role="group" aria-label="Chamber">${btn('chamber', 'senate', 'Senate', view.chamber === 'senate')}${btn('chamber', 'governor', 'Governors', view.chamber === 'governor')}</div>
+    <div class="seggroup" role="group" aria-label="Chamber">${(['senate', 'house', 'governor'] as Chamber[]).map((c) => btn('chamber', c, CHAMBER_NAME[c], view.chamber === c)).join('')}</div>
     ${mode === 'forecast' ? `<div class="seggroup" role="group" aria-label="Color the map by">${btn('colorby', 'picks', 'My calls', view.colorBy === 'picks')}${btn('colorby', 'polling', 'Polling lean', view.colorBy === 'polling')}</div>` : ''}
     <div class="seggroup" role="group" aria-label="Display">${btn('display', 'map', 'Map', view.display === 'map')}${btn('display', 'list', 'List', view.display === 'list')}</div>
     ${view.display === 'map' ? `<div class="seggroup" role="group" aria-label="Jump to">${btn('fly', 'lower48', 'Lower 48', false)}${btn('fly', 'alaska', 'Alaska', false)}${btn('fly', 'hawaii', 'Hawaii', false)}</div>` : ''}`;
@@ -113,7 +122,7 @@ function renderDisplay(): void {
   } else {
     mapslot.hidden = true;
     listslot.hidden = false;
-    listslot.innerHTML = listHtml();
+    renderList(listslot);
   }
 }
 
@@ -124,49 +133,86 @@ function pollingText(race: Race): { label: string; party: Party | null } {
   return { label: 'No polls', party: null };
 }
 
-function listHtml(): string {
+// ---- race list with row virtualization (435 House rows stay cheap) ----
+const ROW_H = 44;
+const VIEWPORT_H = 560;
+let listQuery = '';
+let listRows: Race[] = [];
+
+function listRowHtml(r: Race, inScope: Set<string>, picks: Map<string, Pick>): string {
+  const p = picks.get(r.id);
+  const cand = p?.candidateId ? r.candidates.find((c) => c.id === p.candidateId)?.name : p ? 'Someone else' : null;
+  const pol = pollingText(r);
+  return `<tr class="${inScope.has(r.id) ? '' : 'dim'}">
+    <th scope="row">${esc(r.label)}</th>
+    <td>${r.seatPartyBefore ? `<span class="chip ${r.seatPartyBefore}">${r.seatPartyBefore}</span> ` : ''}<span class="muted">${esc(r.incumbentName ?? (r.chamber === 'house' ? 'none listed' : ''))}</span></td>
+    <td>${p ? `<span class="chip ${p.party}">${letter[p.party]}</span> ${esc(cand)}` : '<span class="muted">not yet</span>'}</td>
+    <td>${pol.party ? `<span class="chip ${pol.party}">${pol.party}</span> ` : ''}${esc(pol.label)}</td>
+    <td><button class="link" data-action="focus" data-race="${esc(r.id)}">${inScope.has(r.id) ? 'Open' : 'Open (outside scope)'}</button></td></tr>`;
+}
+
+function paintListBody(box: HTMLElement): void {
+  const body = box.querySelector('tbody');
+  if (!body) return;
   const inScope = new Set(scopeRaces().map((r) => r.id));
   const picks = picksFor(mode);
-  const races = ctx.data.races.filter((r) => r.chamber === view.chamber).sort((a, b) => a.stateName.localeCompare(b.stateName));
-  const rows = races
-    .map((r) => {
-      const p = picks.get(r.id);
-      const cand = p?.candidateId ? r.candidates.find((c) => c.id === p.candidateId)?.name : p ? 'Someone else' : null;
-      const pol = pollingText(r);
-      return `<tr class="${inScope.has(r.id) ? '' : 'dim'}">
-        <th scope="row">${esc(r.stateName)}${r.special ? ' <span class="muted">(special)</span>' : ''}</th>
-        <td>${r.seatPartyBefore ? `<span class="chip ${r.seatPartyBefore}">${r.seatPartyBefore}</span>` : '–'}</td>
-        <td>${p ? `<span class="chip ${p.party}">${letter[p.party]}</span> ${esc(cand)}` : '<span class="muted">not yet</span>'}</td>
-        <td>${pol.party ? `<span class="chip ${pol.party}">${pol.party}</span> ` : ''}${esc(pol.label)}</td>
-        <td><button class="link" data-action="focus" data-race="${esc(r.id)}">${inScope.has(r.id) ? 'Open' : 'Open (outside scope)'}</button></td></tr>`;
-    })
-    .join('');
-  return `<div class="tablewrap"><table class="list"><caption class="sr">${view.chamber === 'senate' ? 'Senate' : 'Governor'} races</caption>
-    <thead><tr><th>State</th><th>Seat held by</th><th>${mode === 'forecast' ? 'Your call' : 'Your endorsement'}</th><th>Polling lean</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const total = listRows.length;
+  const start = Math.max(0, Math.floor(box.scrollTop / ROW_H) - 8);
+  const end = Math.min(total, start + Math.ceil(VIEWPORT_H / ROW_H) + 16);
+  const top = start * ROW_H;
+  const bottom = (total - end) * ROW_H;
+  body.innerHTML =
+    (top ? `<tr aria-hidden="true" style="height:${top}px"><td colspan="5"></td></tr>` : '') +
+    listRows.slice(start, end).map((r) => listRowHtml(r, inScope, picks)).join('') +
+    (bottom ? `<tr aria-hidden="true" style="height:${bottom}px"><td colspan="5"></td></tr>` : '');
+}
+
+function renderList(slot: HTMLElement): void {
+  const q = listQuery.trim().toLowerCase();
+  const rank = (r: Race) => (r.district === null ? 0 : r.district === 'AL' ? 0 : Number(r.district));
+  listRows = ctx.data.races
+    .filter((r) => r.chamber === view.chamber)
+    .filter((r) => !q || [r.label, r.incumbentName ?? '', ...r.candidates.map((c) => c.name)].some((t) => t.toLowerCase().includes(q)))
+    .sort((a, b) => a.stateName.localeCompare(b.stateName) || rank(a) - rank(b));
+  slot.innerHTML = `<label class="field listsearch">Find a race <input id="listq" type="search" placeholder="State, district, or name" value="${esc(listQuery)}" data-action="list-search" data-on="input"></label>
+    <p class="muted small">${listRows.length} ${CHAMBER_NAME[view.chamber]} race${listRows.length === 1 ? '' : 's'}${q ? ' match' : ''}.</p>
+    <div class="tablewrap vlist" id="vlist" style="max-height:${VIEWPORT_H}px" tabindex="0" aria-label="${CHAMBER_NAME[view.chamber]} races">
+      <table class="list fixed"><caption class="sr">${CHAMBER_NAME[view.chamber]} races</caption>
+      <thead><tr><th>Race</th><th>Incumbent</th><th>${mode === 'forecast' ? 'Your call' : 'Your endorsement'}</th><th>Polling lean</th><th></th></tr></thead><tbody></tbody></table></div>`;
+  const box = slot.querySelector('#vlist') as HTMLElement;
+  paintListBody(box);
+  let raf = 0;
+  box.addEventListener('scroll', () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => { raf = 0; paintListBody(box); });
+  });
 }
 
 export function paint(): void {
+  const stateMode = view.chamber !== 'house';
   const races = ctx.data.races.filter((r) => r.chamber === view.chamber);
   const inScope = new Set(scopeRaces().map((r) => r.id));
   const picks = picksFor(mode);
   const colors = new Map<string, StateColor>();
   const cur = currentRace();
   for (const r of races) {
+    const key = stateMode ? r.state : r.id;
     if (!inScope.has(r.id)) {
-      colors.set(r.state, { fill: colorVar('--out-scope'), label: '·', title: `${r.stateName}: outside your scope` });
+      colors.set(key, { fill: colorVar('--out-scope'), label: '·', title: `${r.label}: outside your scope` });
       continue;
     }
     if (view.colorBy === 'polling' && mode === 'forecast') {
       const o = outcomeFor(r);
-      if (o.status === 'leader') colors.set(r.state, { fill: colorVar(`--${o.leaderParty!.toLowerCase()}`), label: `${o.leaderParty}+${Math.round(o.margin ?? 0)}`, title: `${r.stateName}: polling lead ${o.leaderParty}+${o.margin}` });
-      else colors.set(r.state, { fill: colorVar('--uncalled'), label: o.status === 'tie' ? 'Tie' : '–', title: `${r.stateName}: ${o.status === 'tie' ? 'polling tie' : 'no usable polling'}` });
+      if (o.status === 'leader') colors.set(key, { fill: colorVar(`--${o.leaderParty!.toLowerCase()}`), label: `${o.leaderParty}+${Math.round(o.margin ?? 0)}`, title: `${r.label}: polling lead ${o.leaderParty}+${o.margin}` });
+      else colors.set(key, { fill: colorVar('--uncalled'), label: o.status === 'tie' ? 'Tie' : '–', title: `${r.label}: ${o.status === 'tie' ? 'polling tie' : 'no usable polling'}` });
     } else {
       const p = picks.get(r.id);
-      if (p) colors.set(r.state, { fill: colorVar(`--${p.party.toLowerCase()}`), label: letter[p.party], title: `${r.stateName}: ${PARTY_NAME[p.party]}` });
-      else colors.set(r.state, { fill: colorVar('--uncalled'), label: '?', title: `${r.stateName}: not yet ${mode === 'forecast' ? 'called' : 'endorsed'}` });
+      if (p) colors.set(key, { fill: colorVar(`--${p.party.toLowerCase()}`), label: letter[p.party], title: `${r.label}: ${PARTY_NAME[p.party]}` });
+      else colors.set(key, { fill: colorVar('--uncalled'), label: '?', title: `${r.label}: not yet ${mode === 'forecast' ? 'called' : 'endorsed'}` });
     }
   }
-  paintMap(colors, cur && cur.chamber === view.chamber ? cur.state : null);
+  const selected = cur && cur.chamber === view.chamber ? (stateMode ? cur.state : cur.id) : null;
+  paintMap(stateMode ? 'states' : 'districts', colors, selected);
 }
 
 // ---------------- sidebar ----------------
@@ -189,7 +235,7 @@ function clauseHtml(c: Clause, i: number): string {
       <button class="link" data-action="clause-clear-states" data-i="${i}">Clear states</button></details>
     <label class="cb"><input type="checkbox" data-action="clause-haspoll" data-on="change" data-i="${i}" ${c.hasPolling ? 'checked' : ''}> Only races with polling</label>
     <label class="field">Polling margin within <input type="number" min="0" max="50" step="0.5" value="${c.closeWithin ?? ''}" placeholder="any" data-action="clause-close" data-on="change" data-i="${i}"> pts</label>
-    <label class="field">Seat currently held by
+    <label class="field">Seat or incumbent party
       <select data-action="clause-held" data-on="change" data-i="${i}">
         <option value="" ${!c.seatHeldBy ? 'selected' : ''}>anyone</option>
         <option value="D" ${c.seatHeldBy === 'D' ? 'selected' : ''}>Democrats</option>
@@ -210,7 +256,7 @@ function renderSidebar(): void {
   el.innerHTML = `
     <h2 class="side-h">Your scope</h2>
     <p class="scope-text"><strong>${n}</strong> race${n === 1 ? '' : 's'}: ${esc(describeScope(s))}</p>
-    ${clauses || '<p class="muted">No filters: every Senate and Governor race.</p>'}
+    ${clauses || '<p class="muted">No filters: every Senate, House and Governor race.</p>'}
     <div class="row wrap">
       <button class="btn small" data-action="clause-add">${s.include.length ? 'Add another selection' : 'Narrow my scope'}</button>
       ${s.include.length ? '<button class="btn small ghost" data-action="scope-reset">Reset to everything</button>' : ''}
@@ -335,9 +381,11 @@ function renderCard(): void {
       : '';
   el.innerHTML = `${bar}
     <article class="card" aria-labelledby="race-title">
-      <p class="eyebrow">${race.chamber === 'senate' ? 'U.S. Senate' : 'Governor'}${race.special ? ' · special election' : ''}</p>
+      <p class="eyebrow">${race.chamber === 'senate' ? 'U.S. Senate' : race.chamber === 'house' ? 'U.S. House' : 'Governor'}${race.special ? ' · special election' : ''}</p>
       <h2 id="race-title">${esc(race.label)}</h2>
-      <p class="muted">Seat currently held by ${race.seatPartyBefore ? `<span class="chip ${race.seatPartyBefore}">${race.seatPartyBefore}</span> ${esc(PARTY_NAME[race.seatPartyBefore])}` : 'unknown'}${race.incumbentName ? ` (${esc(race.incumbentName)})` : ''}.</p>
+      <p class="muted">${race.chamber === 'house'
+        ? (race.incumbentName ? `Incumbent: ${race.seatPartyBefore ? `<span class="chip ${race.seatPartyBefore}">${race.seatPartyBefore}</span> ` : ''}${esc(race.incumbentName)}.` : 'No incumbent listed for this district (open or new seat).')
+        : `Seat currently held by ${race.seatPartyBefore ? `<span class="chip ${race.seatPartyBefore}">${race.seatPartyBefore}</span> ${esc(PARTY_NAME[race.seatPartyBefore])}` : 'unknown'}${race.incumbentName ? ` (${esc(race.incumbentName)})` : ''}.`}${race.chamber === 'house' && ctx.redrawn.has(race.state) ? ` <span class="tag">district lines redrawn for 2026</span>` : ''}</p>
       <h3 class="q">${q}</h3><p class="muted small">${sub}</p>
       ${pick ? `<p class="mine">${mode === 'forecast' ? 'Your forecast' : 'Your endorsement'}: <strong>${pick.candidateId ? esc(names.get(pick.candidateId)?.name ?? '') : 'Someone else'}</strong>${pick.origin === 'rule:polling' ? ' <span class="tag">from polling rule</span>' : ''} <button class="link" data-action="clear-pick">Clear</button></p>` : ''}
       <ul class="cands">${cands}${other}</ul>
@@ -352,7 +400,7 @@ function renderCard(): void {
         <summary>${allPolls.length} poll${allPolls.length === 1 ? '' : 's'} on file (${out.selection.included.length} used)</summary>
         ${allPolls.length ? `<div class="tablewrap"><table class="pt"><thead><tr><th>Pollster</th><th>Field dates</th><th>Sample</th><th>Result</th><th>In average?</th><th>Link</th></tr></thead><tbody>${pollRows}</tbody></table></div>${allPolls.length > 40 ? '<p class="muted small">Showing the newest 40.</p>' : ''}` : '<p class="muted">No polls matched this race\'s nominees.</p>'}
       </details>
-      <p class="sources small muted"><span class="srctag">Candidates</span> <a href="${esc(race.source.url)}" target="_blank" rel="noopener noreferrer">Wikipedia</a> (CC BY-SA 4.0), retrieved ${esc(race.source.retrievedAt.slice(0, 16).replace('T', ' '))} UTC · <span class="srctag">Seat holder</span> ${race.chamber === 'senate' ? 'congress-legislators' : 'Wikipedia'} · <span class="srctag">Polls</span> <a href="https://votehub.com/polls/api/" target="_blank" rel="noopener noreferrer">VoteHub</a> (CC BY 4.0), each poll links to its original source</p>
+      <p class="sources small muted"><span class="srctag">Candidates</span> <a href="${esc(race.source.url)}" target="_blank" rel="noopener noreferrer">Wikipedia</a> (CC BY-SA 4.0), retrieved ${esc(race.source.retrievedAt.slice(0, 16).replace('T', ' '))} UTC · <span class="srctag">${race.chamber === 'house' ? 'Incumbent' : 'Seat holder'}</span> ${race.chamber === 'senate' ? 'congress-legislators' : 'Wikipedia'} · <span class="srctag">Polls</span> <a href="https://votehub.com/polls/api/" target="_blank" rel="noopener noreferrer">VoteHub</a> (CC BY 4.0), each poll links to its original source</p>
     </article>
     ${deferred}
     ${mode === 'forecast' ? saveHtml() : ''}`;
@@ -389,9 +437,13 @@ async function refreshCounts(): Promise<void> {
 }
 
 // ---------------- makeup ----------------
+const MAJORITY: Record<Chamber, string> = {
+  senate: 'Reference: 51 of 100 seats is a majority; with a 50–50 split the Vice President breaks ties.',
+  house: 'Reference: 218 of 435 seats is a majority.',
+  governor: '',
+};
+
 function makeupHtml(m: ChamberMakeup, name: string): string {
-  const seatsTotal = m.holdover.D + m.holdover.R + m.holdover.O + m.inScope + m.uncalled * 0;
-  void seatsTotal;
   const sum = m.total.D + m.total.R + m.total.O;
   const w = (n: number) => (sum ? (100 * n) / sum : 0);
   const rows = m.seats
@@ -401,8 +453,8 @@ function makeupHtml(m: ChamberMakeup, name: string): string {
     <div class="tot" role="img" aria-label="${name}: Democratic ${m.total.D}, Republican ${m.total.R}, Other ${m.total.O}">
       <span class="D"><b>${m.total.D}</b> D</span><span class="R"><b>${m.total.R}</b> R</span><span class="O"><b>${m.total.O}</b> O</span></div>
     <div class="stack" aria-hidden="true"><i class="D" style="width:${w(m.total.D)}%"></i><i class="O" style="width:${w(m.total.O)}%"></i><i class="R" style="width:${w(m.total.R)}%"></i></div>
-    <p class="muted small">${m.holdover.D} D, ${m.holdover.R} R, ${m.holdover.O} other not up in 2026 + your calls in scope (${m.called.D} D, ${m.called.R} R, ${m.called.O} other). ${m.uncalled} in-scope race${m.uncalled === 1 ? '' : 's'} uncalled and not counted.${m.complete ? '' : ' Partial totals.'}</p>
-    <details><summary>Which seats add up to this (${m.inScope})</summary><ul class="seatlist">${rows || '<li class="muted">No races of this chamber are in your scope.</li>'}</ul></details></div>`;
+    <p class="muted small">${m.chamber === 'house' ? 'All 435 seats are on the ballot. Your calls' : `${m.holdover.D} D, ${m.holdover.R} R, ${m.holdover.O} other not up in 2026 + your calls`} in scope (${m.called.D} D, ${m.called.R} R, ${m.called.O} other). ${m.uncalled} in-scope race${m.uncalled === 1 ? '' : 's'} uncalled and not counted.${m.complete ? '' : ' Partial totals.'}</p>
+    ${MAJORITY[m.chamber] ? `<p class="muted small">${MAJORITY[m.chamber]}</p>` : ''}<details><summary>Which seats add up to this (${m.inScope})</summary><ul class="seatlist">${rows || '<li class="muted">No races of this chamber are in your scope.</li>'}</ul></details></div>`;
 }
 
 export function chamberMakeup(chamber: Chamber, picks: Map<string, Pick>, scopeIds: Set<string>): ChamberMakeup {
@@ -416,8 +468,9 @@ function renderMakeup(): void {
   const picks = picksFor(mode);
   if (mode === 'forecast') {
     const s = chamberMakeup('senate', picks, ids);
+    const h = chamberMakeup('house', picks, ids);
     const g = chamberMakeup('governor', picks, ids);
-    el.innerHTML = `<h2 class="side-h">My 2026 forecast so far</h2><div class="makeup">${makeupHtml(s, 'Senate')}${makeupHtml(g, 'Governors')}</div>
+    el.innerHTML = `<h2 class="side-h">My 2026 forecast so far</h2><div class="makeup">${makeupHtml(s, 'Senate')}${makeupHtml(h, 'House')}${makeupHtml(g, 'Governors')}</div>
       <p class="muted small">Ballot-question predictions are separate and never change these totals. They are not part of tonight's release.</p>`;
   } else {
     const count = (ch: Chamber) => {
@@ -426,8 +479,9 @@ function renderMakeup(): void {
       return c;
     };
     const s = count('senate');
+    const h = count('house');
     const g = count('governor');
-    el.innerHTML = `<h2 class="side-h">My endorsements so far</h2><p>Senate: ${s.D} D, ${s.R} R, ${s.O} other · Governors: ${g.D} D, ${g.R} R, ${g.O} other.</p>
+    el.innerHTML = `<h2 class="side-h">My endorsements so far</h2><p>Senate: ${s.D} D, ${s.R} R, ${s.O} other · House: ${h.D} D, ${h.R} R, ${h.O} other · Governors: ${g.D} D, ${g.R} R, ${g.O} other.</p>
       <p class="muted small">These are what you want, not what you expect. They never change your forecast.</p>`;
   }
 }
@@ -440,8 +494,9 @@ function buildMap(kind: 'prediction' | 'forecast', name: string, notes: string):
   const inScopePicks = [...picks.values()].filter((p) => ids.has(p.raceId));
   const pickMap = new Map(inScopePicks.map((p) => [p.raceId, p]));
   const s = computeMakeup('senate', ctx.data, ids, pickMap);
+  const h = computeMakeup('house', ctx.data, ids, pickMap);
   const g = computeMakeup('governor', ctx.data, ids, pickMap);
-  const seats: SavedSeat[] = [...s.seats, ...g.seats].map((x) => {
+  const seats: SavedSeat[] = [...s.seats, ...h.seats, ...g.seats].map((x) => {
     const race = raceById(x.raceId)!;
     const o = outcomeFor(race);
     return {
@@ -463,7 +518,7 @@ function buildMap(kind: 'prediction' | 'forecast', name: string, notes: string):
     methodText: describeMethod(ctx.working.pollSettings),
     picks: inScopePicks,
     seats,
-    aggregate: { senate: agg(s), governor: agg(g) },
+    aggregate: { senate: agg(s), house: agg(h), governor: agg(g) },
   };
 }
 
@@ -491,6 +546,7 @@ function afterDecision(id: string, nextQ: QueueState): void {
 }
 
 registerActions({
+  'list-search': (el) => { listQuery = (el as HTMLInputElement).value; const slot = root?.querySelector('#listslot') as HTMLElement | null; if (slot) { const pos = (el as HTMLInputElement).selectionStart; renderList(slot); const inp = slot.querySelector('#listq') as HTMLInputElement | null; inp?.focus(); if (inp && pos !== null) inp.setSelectionRange(pos, pos); } },
   chamber: (el) => { view.chamber = el.dataset['val'] as Chamber; const c = currentRace(); if (c && c.chamber !== view.chamber) view.focusRaceId = null; renderToolbar(); renderDisplay(); paint(); },
   colorby: (el) => { view.colorBy = el.dataset['val'] as View['colorBy']; renderToolbar(); paint(); renderDisplay(); },
   display: (el) => { view.display = el.dataset['val'] as View['display']; renderToolbar(); renderDisplay(); paint(); },
@@ -624,9 +680,11 @@ registerActions({
 });
 
 /** Called by the router when the map is clicked. */
-export function onMapPick(usps: string): void {
+export function onMapPick(key: string): void {
   if (!root || !root.querySelector('.flow')) return;
-  const r = ctx.data.races.find((x) => x.chamber === view.chamber && x.state === usps);
+  const r = key.startsWith('house-')
+    ? ctx.data.races.find((x) => x.id === key)
+    : ctx.data.races.find((x) => x.chamber === view.chamber && x.state === key);
   if (!r) return;
   view.focusRaceId = r.id;
   renderAll();

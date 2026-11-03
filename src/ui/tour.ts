@@ -7,7 +7,7 @@ interface Step { title: string; art: string; body: string }
 
 function steps(): Step[] {
   return [
-    { title: 'Welcome to Elecia', art: sprig(110), body: 'Call the 2026 Senate and Governor races the way you think they will go. It takes a few minutes, and you can skip this tour at any time.' },
+    { title: 'Welcome to Elecia', art: sprig(110), body: 'Call the 2026 Senate, House and Governor races the way you think they will go. It takes a few minutes, and you can skip this tour at any time.' },
     { title: 'Two different questions', art: tally(90), body: '<strong>Forecasting</strong> asks what you think will happen. <strong>Endorsing</strong> asks whom you want to win. They are stored separately, and you are free to disagree with yourself.' },
     { title: 'One race at a time', art: sprig(90), body: 'Each race gets a card with the nominees and the polls. Pick someone, or press <strong>Come back later</strong>. Skipped races return after about 20 more, and you can always open the list of them.' },
     { title: 'You control the polling', art: tally(90), body: 'Use the latest poll, the latest N, the last X days, or all polls. Every poll is listed with its dates and a link, and you see which ones were counted. If polling is tied or missing, the call is yours.' },

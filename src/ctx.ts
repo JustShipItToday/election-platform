@@ -20,6 +20,8 @@ const emptyWorking: Working = {
 const idb = createIdbStore();
 
 export const ctx = {
+  /** States whose House districts changed between Census TIGER 2025 and 2026 (read from districts-meta.json). */
+  redrawn: new Set<string>(),
   data: null as unknown as Dataset,
   calls: { updatedAt: '', calls: [] } as CallsFile,
   working: structuredClone(emptyWorking) as Working,
@@ -81,7 +83,9 @@ export function outcomeFor(race: Race): PollOutcome {
 
 export function scopeRaces(scope: Scope = ctx.working.scope): Race[] {
   const out = resolveScope(scope, ctx.data, ctx.working.pollSettings, now());
-  return out.sort((a, b) => (a.chamber === b.chamber ? a.stateName.localeCompare(b.stateName) : a.chamber === 'senate' ? -1 : 1));
+  const chamberRank = { senate: 0, house: 1, governor: 2 } as const;
+  const num = (r: Race) => (r.district === null || r.district === 'AL' ? 0 : Number(r.district));
+  return out.sort((a, b) => chamberRank[a.chamber] - chamberRank[b.chamber] || a.stateName.localeCompare(b.stateName) || num(a) - num(b));
 }
 
 export function picksFor(mode: Mode): Map<string, Pick> {

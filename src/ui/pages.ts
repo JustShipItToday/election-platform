@@ -28,7 +28,7 @@ export function aboutPage(): string {
   const c = clockState();
   return `<article class="page about">
   <header class="pagehead">${sprig(130)}<div><p class="eyebrow">About</p><h1>Elecia is a greenhouse for election-night thinking</h1>
-  <p class="lede">Call the 2026 Senate and Governor races the way you think they will go. Separately, record whom you want to win. Look at the polls behind every race. Everything stays in your own browser.</p></div></header>
+  <p class="lede">Call the 2026 Senate, House and Governor races the way you think they will go. Separately, record whom you want to win. Look at the polls behind every race. Everything stays in your own browser.</p></div></header>
   <section><h2>Forecasting and endorsing are different</h2>
   <p><strong>Forecasting</strong> asks what you think will happen. <strong>Endorsing</strong> asks whom you want to support. You can predict one candidate and endorse another. Elecia never reconciles the two for you, and the Reconcile page only describes how your choices relate.</p></section>
   <section><h2>When predictions close</h2>
@@ -40,11 +40,11 @@ export function aboutPage(): string {
     <li><strong>Polls:</strong> <a href="https://votehub.com/polls/api/" target="_blank" rel="noopener noreferrer">VoteHub</a>, shared under CC BY 4.0. Every poll links to its original source. Averages are computed here from those polls using the method you choose.</li>
     <li><strong>Candidates and nominees:</strong> each race's Wikipedia page (CC BY-SA 4.0), linked on every race card.</li>
     <li><strong>Sitting senators:</strong> the public-domain <a href="https://github.com/unitedstates/congress-legislators" target="_blank" rel="noopener noreferrer">congress-legislators</a> roster.</li>
-    <li><strong>Map shapes:</strong> U.S. Census Bureau boundaries via us-atlas.</li>
+    <li><strong>Map shapes:</strong> U.S. Census Bureau boundaries: states via us-atlas, and the House districts for the 120th Congress from TIGER/Line 2026. District lines changed in several states for 2026 (${ctx.redrawn.size ? [...ctx.redrawn].sort().join(', ') : 'see the data status'}); the maps here use the new lines.</li>
   </ul>
   <p>When a source is missing something, Elecia says so instead of filling the gap.</p></section>
   <section><h2>What is not in this release</h2>
-  <p>House races, ballot questions, accounts, and the AI research assistant are not part of this release. Your data lives only in this browser; clearing site data erases it, and Saved lets you export a file first. The project is open source at <a href="${REPO}" target="_blank" rel="noopener noreferrer">GitHub</a>.</p></section>
+  <p>Ballot questions, accounts, and the AI research assistant are not part of this release. Your data lives only in this browser; clearing site data erases it, and Saved lets you export a file first. The project is open source at <a href="${REPO}" target="_blank" rel="noopener noreferrer">GitHub</a>.</p></section>
   </article>`;
 }
 
@@ -91,7 +91,7 @@ export function resultsPage(): string {
   let hit = 0, miss = 0, pending = 0, unforecast = 0;
   const rows = ctx.data.races
     .slice()
-    .sort((a, b) => (a.chamber === b.chamber ? a.stateName.localeCompare(b.stateName) : a.chamber === 'senate' ? -1 : 1))
+    .sort((a, b) => ({ senate: 0, house: 1, governor: 2 })[a.chamber] - ({ senate: 0, house: 1, governor: 2 })[b.chamber] || a.stateName.localeCompare(b.stateName) || Number(a.district === 'AL' ? 0 : a.district ?? 0) - Number(b.district === 'AL' ? 0 : b.district ?? 0))
     .map((r) => {
       const v = judgeCall(calls.get(r.id), r);
       const p = picks.get(r.id);
@@ -177,7 +177,7 @@ export async function savedPage(host: HTMLElement): Promise<void> {
   <p class="muted small">${savedTab === 'forecast' ? 'Forecast maps are named, frozen snapshots.' : 'Prediction maps are working saves and versions.'}</p>
   <div class="row wrap"><button class="btn small ghost" data-action="export-all">Export all as a file</button>
   <label class="btn small ghost">Import a file<input type="file" accept="application/json" data-action="import-file" data-on="change" hidden></label></div>
-  ${list.length ? `<ul class="maplist">${list.map((m) => `<li class="mapitem"><div><strong>${esc(m.name)}</strong><br><span class="muted small">${esc(formatInstant(Date.parse(m.createdAt)))} · ${m.picks.length} calls · Senate ${m.aggregate.senate.total.D}D-${m.aggregate.senate.total.R}R · Governors ${m.aggregate.governor.total.D}D-${m.aggregate.governor.total.R}R</span></div>
+  ${list.length ? `<ul class="maplist">${list.map((m) => `<li class="mapitem"><div><strong>${esc(m.name)}</strong><br><span class="muted small">${esc(formatInstant(Date.parse(m.createdAt)))} · ${m.picks.length} calls · Senate ${m.aggregate.senate.total.D}D-${m.aggregate.senate.total.R}R${m.aggregate.house ? ` · House ${m.aggregate.house.total.D}D-${m.aggregate.house.total.R}R` : ''} · Governors ${m.aggregate.governor.total.D}D-${m.aggregate.governor.total.R}R</span></div>
   <div class="row"><a class="btn small" href="#/2026/saved/${esc(m.id)}">Open</a>${canDelete ? `<button class="btn small ghost" data-action="saved-delete" data-id="${esc(m.id)}">Delete</button>` : ''}</div></li>`).join('')}</ul>` : `<div class="empty">${sprig(90)}<p>No ${savedTab} maps yet. Make some calls on the Forecasting page, then save them.</p><a class="btn" href="#/2026/forecasting">Go forecast</a></div>`}`;
 }
 
@@ -201,21 +201,23 @@ export async function savedDetail(host: HTMLElement, id: string): Promise<void> 
   <h1>${esc(m.name)}</h1><p class="muted">${m.kind === 'forecast' ? 'Forecast map (frozen)' : 'Prediction map'} · saved ${esc(formatInstant(Date.parse(m.createdAt)))} · data as of ${esc(formatInstant(Date.parse(m.dataAsOf)))}</p>
   ${m.notes ? `<p class="notes">${esc(m.notes)}</p>` : ''}
   <p class="small"><strong>Scope:</strong> ${esc(m.scopeText)}<br><strong>Polling method:</strong> ${esc(m.methodText)}</p>
-  <div class="toolbar"><div class="seggroup"><button class="seg on" data-action="saved-chamber" data-val="senate" aria-pressed="true">Senate</button><button class="seg" data-action="saved-chamber" data-val="governor" aria-pressed="false">Governors</button></div></div>
+  <div class="toolbar"><div class="seggroup"><button class="seg on" data-action="saved-chamber" data-val="senate" aria-pressed="true">Senate</button><button class="seg" data-action="saved-chamber" data-val="house" aria-pressed="false">House</button><button class="seg" data-action="saved-chamber" data-val="governor" aria-pressed="false">Governors</button></div></div>
   <div class="mapslot" id="savedmap"></div>
-  <div class="makeup">${agg('Senate', m.aggregate.senate)}${agg('Governors', m.aggregate.governor)}</div>
+  <div class="makeup">${agg('Senate', m.aggregate.senate)}${m.aggregate.house ? agg('House', m.aggregate.house) : ''}${agg('Governors', m.aggregate.governor)}</div>
   <div class="tablewrap"><table class="list"><thead><tr><th>Race</th><th>Call</th><th>Polling then</th>${showResults ? '<th>Compared with result</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div></article>`;
   const slot = host.querySelector('#savedmap') as HTMLElement;
   slot.appendChild(mapEl);
   window.setTimeout(resizeMap, 30);
   const paintSaved = (chamber: Chamber) => {
     const colors = new Map<string, StateColor>();
+    const stateMode = chamber !== 'house';
     for (const r of ctx.data.races.filter((x) => x.chamber === chamber)) {
+      const key = stateMode ? r.state : r.id;
       const s = m.seats.find((x) => x.raceId === r.id);
-      if (!s) { colors.set(r.state, { fill: colorVar('--out-scope'), label: '·', title: `${r.stateName}: not in this map` }); continue; }
-      colors.set(r.state, s.party ? { fill: colorVar(`--${s.party.toLowerCase()}`), label: s.party, title: `${r.stateName}: ${PARTY_NAME[s.party]}` } : { fill: colorVar('--uncalled'), label: '?', title: `${r.stateName}: not called` });
+      if (!s) { colors.set(key, { fill: colorVar('--out-scope'), label: '·', title: `${r.label}: not in this map` }); continue; }
+      colors.set(key, s.party ? { fill: colorVar(`--${s.party.toLowerCase()}`), label: s.party, title: `${r.label}: ${PARTY_NAME[s.party]}` } : { fill: colorVar('--uncalled'), label: '?', title: `${r.label}: not called` });
     }
-    paintMap(colors, null);
+    paintMap(stateMode ? 'states' : 'districts', colors, null);
   };
   paintSaved('senate');
   savedChamberHandler = (c) => { paintSaved(c); host.querySelectorAll<HTMLElement>('[data-action="saved-chamber"]').forEach((b) => { const on = b.dataset['val'] === c; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }); };
