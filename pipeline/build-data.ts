@@ -8,41 +8,19 @@
 import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { DatasetSchema, type Candidate, type Dataset, type Party, type Poll, type Race, type SourceRef } from '../src/data/schema';
 import { STATES, USPS_BY_NAME } from '../src/data/states';
-import { parseInfobox, normalizeParty, linkTarget, slug, matchName, type Infobox } from './infobox';
+import { parseInfobox, normalizeParty, linkTarget, matchName } from './infobox';
+import { candidatesFrom, reportedFrom } from './race-parse';
 import { FORECAST_CLOSES_AT_MS, RESULTS_VISIBLE_AT_MS } from '../src/domain/lifecycle';
 import { getJson } from './http';
 import { MIN, wikitext } from './wiki';
 import { deriveGovernorStates, deriveSenateRaces } from './races';
 import { loadGovernors } from './governors';
+import { loadRoster, lastTerm, fullName, partyBucket } from './roster';
+import { buildHouse } from './house';
 
 const NOW = new Date().toISOString();
 const warnings: string[] = [];
 const RACE_TTL = 12 * MIN;
-
-// ---------- Congress roster ----------
-interface Legislator {
-  id: { bioguide: string };
-  name: { official_full?: string; first: string; last: string };
-  terms: { type: string; state: string; class?: number; party: string; end: string; caucus?: string }[];
-}
-
-function partyBucket(party: string): Party {
-  if (party === 'Democrat') return 'D';
-  if (party === 'Republican') return 'R';
-  return 'O';
-}
-
-const lastTerm = (l: Legislator) => l.terms[l.terms.length - 1]!;
-const fullName = (l: Legislator) => l.name.official_full ?? `${l.name.first} ${l.name.last}`;
-
-async function loadRoster() {
-  const url = 'https://unitedstates.github.io/congress-legislators/legislators-current.json';
-  const all = await getJson<Legislator[]>(url);
-  const senators = all.filter((l) => lastTerm(l).type === 'sen');
-  if (senators.length !== 100) throw new Error(`Expected 100 senators, got ${senators.length}`);
-  const source: SourceRef = { name: 'unitedstates/congress-legislators', url, retrievedAt: NOW, license: 'Public domain (CC0)' };
-  return { all, senators, source };
-}
 
 // ---------- VoteHub ----------
 interface VhPoll {
@@ -65,56 +43,8 @@ interface VhPoll {
 
 const loadVoteHub = (type: string) => getJson<VhPoll[]>(`https://api.votehub.com/polls?poll_type=${type}&limit=2000`);
 
-// ---------- infobox -> race ----------
-function candidatesFrom(box: Infobox, raceId: string): Candidate[] {
-  const out: Candidate[] = [];
-  for (let i = 1; i <= 8; i++) {
-    const raw = box.get(`nominee${i}`) ?? box.get(`candidate${i}`);
-    if (!raw) continue;
-    const name = linkTarget(raw).display;
-    if (!name) continue;
-    const partyRaw = box.get(`party${i}`) ?? '';
-    out.push({
-      id: `${raceId}:${slug(name)}`,
-      name,
-      party: normalizeParty(partyRaw),
-      partyLabel: linkTarget(partyRaw).display || 'Unknown',
-      wikipediaTitle: linkTarget(raw).target,
-    });
-  }
-  return out;
-}
-
-function numberOrNull(s: string | undefined): number | null {
-  if (!s) return null;
-  const digits = s.replace(/[^0-9.]/g, '');
-  const n = Number(digits);
-  return digits !== '' && Number.isFinite(n) ? n : null;
-}
-
-function reportedFrom(box: Infobox, cands: Candidate[]) {
-  const results = [];
-  for (let i = 1; i <= 8; i++) {
-    const raw = box.get(`nominee${i}`) ?? box.get(`candidate${i}`);
-    if (!raw) continue;
-    const c = cands.find((x) => x.name === linkTarget(raw).display);
-    if (!c) continue;
-    const votes = numberOrNull(box.get(`popular_vote${i}`));
-    const pct = numberOrNull(box.get(`percentage${i}`));
-    if (votes !== null || pct !== null) results.push({ candidateId: c.id, votes, pct });
-  }
-  const afterParty = box.get('after_party');
-  const afterName = box.get('after_election');
-  return {
-    afterParty: afterParty ? normalizeParty(afterParty) : null,
-    afterName: afterName ? linkTarget(afterName).display || null : null,
-    results,
-    retrievedAt: NOW,
-  };
-}
-
 async function main() {
-  const roster = await loadRoster();
+  const roster = await loadRoster(NOW);
   const senateSpecs = await deriveSenateRaces();
   const govStates = await deriveGovernorStates();
   const gov = await loadGovernors();
@@ -165,11 +95,12 @@ async function main() {
       stateName,
       label: `${stateName} Senate${spec.special ? ' (special)' : ''}`,
       special: spec.special,
+      district: null,
       seatPartyBefore,
       incumbentName: holder ? fullName(holder) : infoName || null,
       candidates,
-      candidatesStatus: candidates.length >= 2 ? 'nominees' : 'unavailable',
-      reported: got ? reportedFrom(got.box, candidates) : { afterParty: null, afterName: null, results: [], retrievedAt: NOW },
+      candidatesStatus: candidates.length >= 1 ? 'nominees' : 'unavailable',
+      reported: got ? reportedFrom(got.box, candidates, NOW) : { afterParty: null, afterName: null, results: [], retrievedAt: NOW },
       source,
     });
     process.stdout.write(`sen:${spec.state} `);
@@ -195,16 +126,21 @@ async function main() {
       stateName,
       label: `${stateName} Governor`,
       special: false,
+      district: null,
       seatPartyBefore: listed?.party ?? (infoParty ? normalizeParty(infoParty) : null),
       incumbentName: listed?.name ?? (infoName || null),
       candidates,
-      candidatesStatus: candidates.length >= 2 ? 'nominees' : 'unavailable',
-      reported: got ? reportedFrom(got.box, candidates) : { afterParty: null, afterName: null, results: [], retrievedAt: NOW },
+      candidatesStatus: candidates.length >= 1 ? 'nominees' : 'unavailable',
+      reported: got ? reportedFrom(got.box, candidates, NOW) : { afterParty: null, afterName: null, results: [], retrievedAt: NOW },
       source,
     });
     process.stdout.write(`gov:${st} `);
   }
   console.log();
+
+  const house = await buildHouse({ reps: roster.reps, now: NOW, warnings });
+  races.push(...house.races);
+  console.log('house coverage', JSON.stringify(house.coverage));
 
   // ---------- Holdovers (all derived) ----------
   const holdSen = { D: 0, R: 0, O: 0 };
@@ -241,22 +177,32 @@ async function main() {
     results,
     answers: p.answers,
   });
+  const tryAdd = (p: VhPoll, race: Race | undefined) => {
+    if (!race || race.candidatesStatus !== 'nominees' || seen.has(p.id)) return;
+    const results: { candidateId: string; pct: number }[] = [];
+    for (const a of p.answers) {
+      const c = race.candidates.find((x) => matchName(x.name, a.choice));
+      if (c) results.push({ candidateId: c.id, pct: a.pct });
+    }
+    if (results.length < 2) { droppedNoMatch += 1; return; }
+    seen.add(p.id);
+    polls.push(toPoll(p, race, results));
+  };
   for (const [type, list] of [['senate', senPolls], ['governor', govPolls]] as const) {
     for (const p of list) {
       const m = /^2026 (.+)$/.exec(p.subject ?? '');
       const st = m ? USPS_BY_NAME[m[1]!] : undefined;
-      if (!st || seen.has(p.id)) continue;
-      const race = races.find((r) => r.id === `${type}-${st}`);
-      if (!race || race.candidatesStatus !== 'nominees') continue;
-      const results: { candidateId: string; pct: number }[] = [];
-      for (const a of p.answers) {
-        const c = race.candidates.find((x) => matchName(x.name, a.choice));
-        if (c) results.push({ candidateId: c.id, pct: a.pct });
-      }
-      if (results.length < 2) { droppedNoMatch += 1; continue; }
-      seen.add(p.id);
-      polls.push(toPoll(p, race, results));
+      if (st) tryAdd(p, races.find((r) => r.id === `${type}-${st}`));
     }
+  }
+  const housePolls = await loadVoteHub('us-representative');
+  for (const p of housePolls) {
+    const code = p.seat_name ?? (p.subject ?? '').replace(/^2026\s+/, '');
+    const m = /^([A-Z]{2})-(\d+|AL)$/.exec(code);
+    if (!m) continue;
+    const inState = races.filter((r) => r.chamber === 'house' && r.state === m[1]);
+    const district = inState.length === 1 ? 'AL' : String(Number(m[2]));
+    tryAdd(p, inState.find((r) => r.district === district));
   }
   if (droppedNoMatch > 0) warnings.push(`${droppedNoMatch} VoteHub polls did not match two named nominees (for example primary polls) and are not shown.`);
 
@@ -278,6 +224,7 @@ async function main() {
             : 'Seats not on the ballot in 2026.',
           source: roster.source,
         },
+        house: { D: 0, R: 0, O: 0, note: 'All 435 seats are on the ballot in 2026.', source: roster.source },
         governor: {
           ...holdGov,
           note: `Governors in the ${50 - govStates.length} states with no governor race in 2026, from Wikipedia's list of current governors.`,

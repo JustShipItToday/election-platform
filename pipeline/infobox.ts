@@ -122,3 +122,13 @@ export function matchName(a: string, b: string): boolean {
   if (!ta.length || !tb.length) return false;
   return ta[ta.length - 1] === tb[tb.length - 1] && ta[0]![0] === tb[0]![0];
 }
+
+/** Every {{Infobox election}} on a page with its offset, so callers can tie each one to the nearest heading. */
+export function parseInfoboxes(wikitext: string): { pos: number; box: Infobox }[] {
+  const out: { pos: number; box: Infobox }[] = [];
+  for (const m of wikitext.matchAll(/\{\{\s*Infobox election/gi)) {
+    const pos = m.index ?? 0;
+    out.push({ pos, box: parseInfobox(wikitext.slice(pos, pos + 30_000)) });
+  }
+  return out;
+}

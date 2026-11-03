@@ -7,14 +7,21 @@ const dataset = DatasetSchema.parse(JSON.parse(readFileSync('public/data/dataset
 const calls = CallsFileSchema.parse(JSON.parse(readFileSync('public/data/calls.json', 'utf8')));
 
 describe('generated dataset', () => {
-  it('has 35 Senate and 36 Governor races', () => {
+  it('has 35 Senate, 435 House and 36 Governor races', () => {
     expect(dataset.races.filter((r) => r.chamber === 'senate')).toHaveLength(35);
+    expect(dataset.races.filter((r) => r.chamber === 'house')).toHaveLength(435);
     expect(dataset.races.filter((r) => r.chamber === 'governor')).toHaveLength(36);
+  });
+  it('every House seat has a unique district and a label', () => {
+    const house = dataset.races.filter((r) => r.chamber === 'house');
+    expect(new Set(house.map((r) => `${r.state}-${r.district}`)).size).toBe(435);
+    for (const r of house) expect(r.label.length).toBeGreaterThan(3);
   });
   it('holdovers plus seats up equal the full chamber', () => {
     const h = dataset.meta.holdovers;
     expect(h.senate.D + h.senate.R + h.senate.O + 35).toBe(100);
     expect(h.governor.D + h.governor.R + h.governor.O + 36).toBe(50);
+    expect(h.house.D + h.house.R + h.house.O).toBe(0);
   });
   it('every poll belongs to a real race and only names that race\'s nominees', () => {
     const races = new Map(dataset.races.map((r) => [r.id, r]));
@@ -24,6 +31,13 @@ describe('generated dataset', () => {
       expect(p.results.length).toBeGreaterThanOrEqual(2);
       for (const res of p.results) expect(race!.candidates.some((c) => c.id === res.candidateId), p.id).toBe(true);
     }
+  });
+  it('district geometry covers exactly the House seats in the data', () => {
+    const topo = JSON.parse(readFileSync('public/data/districts.json', 'utf8')) as { objects: { districts: { geometries: { properties: { id: string } }[] } } };
+    const ids = new Set(topo.objects.districts.geometries.map((g) => g.properties.id));
+    const house = dataset.races.filter((r) => r.chamber === 'house');
+    expect(ids.size).toBe(435);
+    for (const r of house) expect(ids.has(r.id), r.id).toBe(true);
   });
   it('race ids are unique', () => {
     expect(new Set(dataset.races.map((r) => r.id)).size).toBe(dataset.races.length);

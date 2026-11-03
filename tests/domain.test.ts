@@ -185,6 +185,7 @@ const race = (id: string, chamber: 'senate' | 'governor', state: string): Race =
   stateName: state,
   label: `${state} ${chamber}`,
   special: false,
+  district: null,
   seatPartyBefore: 'R',
   incumbentName: null,
   candidates: cands,
@@ -199,6 +200,7 @@ const data: Dataset = {
     election: { date: '2026-11-03', forecastClosesAt: '', resultsVisibleAt: '' },
     holdovers: {
       senate: { D: 40, R: 20, O: 2, note: '', source: src },
+      house: { D: 0, R: 0, O: 0, note: '', source: src },
       governor: { D: 6, R: 8, O: 0, note: '', source: src },
     },
     sources: [],

@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const PartySchema = z.enum(['D', 'R', 'O']);
 export type Party = z.infer<typeof PartySchema>;
 
-export const ChamberSchema = z.enum(['senate', 'governor']);
+export const ChamberSchema = z.enum(['senate', 'house', 'governor']);
 export type Chamber = z.infer<typeof ChamberSchema>;
 
 export const SourceRefSchema = z.object({
@@ -38,6 +38,8 @@ export const RaceSchema = z.object({
   stateName: z.string(),
   label: z.string(),
   special: z.boolean(),
+  /** House only: "AL" for at-large, otherwise the district number as text. */
+  district: z.string().nullable(),
   seatPartyBefore: PartySchema.nullable(),
   incumbentName: z.string().nullable(),
   candidates: z.array(CandidateSchema),
@@ -89,7 +91,7 @@ export const MetaSchema = z.object({
     forecastClosesAt: z.string(),
     resultsVisibleAt: z.string(),
   }),
-  holdovers: z.object({ senate: HoldoverSchema, governor: HoldoverSchema }),
+  holdovers: z.object({ senate: HoldoverSchema, house: HoldoverSchema, governor: HoldoverSchema }),
   sources: z.array(SourceRefSchema),
   counts: z.object({ races: z.number(), polls: z.number(), racesWithNominees: z.number() }),
   warnings: z.array(z.string()),

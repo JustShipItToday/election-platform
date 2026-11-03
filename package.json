@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "data": "tsx pipeline/build-data.ts",
     "prebuild": "node scripts/copy-maplibre-worker.mjs",
-    "pretest": "node scripts/copy-maplibre-worker.mjs"
+    "pretest": "node scripts/copy-maplibre-worker.mjs",
+    "districts": "tsx pipeline/districts.ts"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
@@ -26,6 +27,12 @@
     "@types/geojson": "^7946.0.16",
     "@types/node": "^26.6.6",
     "@types/topojson-client": "^3.1.5",
+    "@types/topojson-server": "^3.0.4",
+    "@types/topojson-simplify": "^3.0.3",
+    "fflate": "^0.8.3",
+    "shapefile": "^0.6.6",
+    "topojson-server": "^3.0.1",
+    "topojson-simplify": "^3.0.3",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",

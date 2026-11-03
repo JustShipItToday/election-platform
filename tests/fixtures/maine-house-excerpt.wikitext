@@ -1,0 +1,75 @@
+<!-- Labeled fixture: opening sections of two districts captured from Wikipedia "2026 United States House of Representatives elections in Maine" on 2026-11-03 (CC BY-SA 4.0). -->
+==District 1==
+{{Infobox election
+| election_name = 2026 Maine's 1st congressional district election
+| country = Maine
+| type = presidential
+| ongoing = yes
+| previous_election = 2024 United States House of Representatives elections in Maine#District 1
+| previous_year = 2024
+| next_election = 2028 United States House of Representatives elections in Maine#District 1
+| next_year = 2028
+| image1 = CPingree Portrait 202203 (cropped) (cropped).jpg
+| nominee1 = [[Chellie Pingree]]
+| party1 = Democratic Party (United States)
+| popular_vote1 = 
+| percentage1 = 
+| image2 = 3x4.svg
+| nominee2 = Ronald Russell
+| party2 = Republican Party (United States)
+| popular_vote2 = 
+| percentage2 = 
+| map_image = 
+| map_size = 300px
+| map_caption = 
+| title = U.S. Representative
+| before_election = [[Chellie Pingree]]
+| before_party = Democratic Party (United States)
+| after_election = 
+| after_party = 
+}}
+{{see also|Maine's 1st congressional district}}
+The 1st district comprises coastal and southern Maine, including [[Portland, Maine|Portland]], the largest city in Maine. The incumbent is Democrat [[Chellie Pingree]], who was first elected in [[2008 United States House of Representatives elections in Maine|2008]]. She was most recently re-elected in [[2024 United States House of Representatives elections in Maine|2024]] with 58.1% of the vote<ref name="HPVT">{{cite web|url=https://www.cookpolitical.com/vote-tracker/2024/house|title=2024 House Vote Tracker|access-date=December 2, 2024 |website=[[The Cook Political Report with Amy Walter|Cook Political Report]]}}</ref> and is seeking re-election to a tenth term.<ref name="sc"/> State representative [[Tiffany Roberts (politician)|Tiffany Roberts]] had announced a challenge to Pingree in the Democratic primary, accusing Pingree of being insufficiently bipartisan, however she was unable to collect enough signatures to qualify for the primary ballot.<ref>{{Cite web |last=Miller |first=Kevin |date=2025-09-15 |title=Democratic state lawmaker says she might challenge Rep. Pingree |url=https://www.mainepublic.org/politics/2025-09-15/democratic-state-lawmaker-says-she-might-challenge-rep-pingree |access-date=2025-10-06 |website=Maine Public |language=en}}</ref><ref>{{Cite web |last=Kobin |first=Billy |date=2025-11-05 |title=Maine lawmaker files to challenge Chellie Pingree in 2026 Democratic primary |url=https://www.bangordailynews.com/2025/11/04/politics/elections/tiffany-roberts-maine-lawmaker-challenge-chellie-pingree-2026-democratic-primary/ |access-date=2025-11-05 |website=Bangor Daily News |language=en-US}}</ref>
+
+Republicans Joshua Pietrowicz and Ronald Russell have filed FEC paperwork to run for the 1st district primary election.<ref>{{Cite web |last=Billings |first=Randy |date=2025-09-15 |title=South Berwick lawmaker may primary Chellie Pingree in Maine's 1st District |url=https://www.pressherald.com/2025/09/15/south-berwick-lawmaker-may-primary-chellie-pingree-in-maines-1st-district/ |access-date=2025-09-15 |website=[[Portland Press Herald]] |language=en-US}}</ref>
+
+==District 2==
+{{Infobox election
+| election_name = 2026 Maine's 2nd congressional district election
+| country = Maine
+| type = presidential
+| ongoing = yes
+| previous_election = 2024 United States House of Representatives elections in Maine#District 2
+| previous_year = 2024
+| next_election = 2028 United States House of Representatives elections in Maine#District 2
+| next_year = 2028
+| image1 = Matt Dunlap (cropped headshot).jpg
+| nominee1 = [[Matthew Dunlap]]
+| party1 = Democratic Party (United States)
+| popular_vote1 = 
+| percentage1 = 
+| image2 = Paul LePage (32997047882) (cropped).jpg
+| nominee2 = [[Paul LePage]]
+| party2 = Republican Party (United States)
+| popular_vote2 = 
+| percentage2 = 
+| map_image = 
+| map_size = 300px
+| map_caption = 
+| title = U.S. Representative
+| before_election = [[Jared Golden]]
+| before_party = Democratic Party (United States)
+| after_election = 
+| after_party = 
+}}
+{{see also|Maine's 2nd congressional district}}
+The 2nd district comprises central and northern Maine and is one of the most rural districts in the United States. It is the largest district by area east of the [[Mississippi River]]. Some of the most notable cities in the district include [[Lewiston, Maine|Lewiston]] and [[Bangor, Maine|Bangor]], the second and third largest cities in Maine, as well as the state capital [[Augusta, Maine|Augusta]]. The incumbent is Democrat [[Jared Golden]], who was first elected in [[2018 United States House of Representatives elections in Maine|2018]] when he narrowly defeated incumbent Republican [[Bruce Poliquin]]. He was most recently re-elected in [[2024 United States House of Representatives elections in Maine|2024]] with 50.3% of the vote<ref name="HPVT"/> and was one of 17 Democratic members of Congress representing districts that [[Donald Trump]] carried in [[2024 United States presidential election|2024]]. The district voted for Trump by 9.5 percentage points in 2024 while re-electing Golden by less than one percent, making it Trump's widest margin of victory in any of the 13 districts that voted for him while simultaneously electing a Democrat to Congress on the same ballot. Because of this, it is seen as one of the Republican Party's top [[2025-2026 United States redistricting|non-redistricted]] pickup opportunities. Golden initially sought re-election to a fifth term but withdrew in November 2025.
+
+[[Maine State Auditor]] [[Matthew Dunlap]] entered the Democratic primary as a challenger to Golden,<ref>{{Cite web |date=2025-10-06 |title=Rep. Jared Golden gets a primary from the left |url=https://www.politico.com/live-updates/2025/10/06/congress/golden-gets-a-primary-00594620 |access-date=2026-03-16 |website=POLITICO |language=en}}</ref> and has the support of [[Mike Michaud]], who represented this district from 2003 to 2015.<ref>{{Cite web |author=Billings, Randy|date=2025-10-21 |title=Former US Rep. Mike Michaud backs Jared Golden’s primary challenger |url=https://www.pressherald.com/2025/10/21/former-u-s-rep-mike-michaud-backs-jared-goldens-primary-challenger/ |access-date=2026-03-16 |website=The Portland Press Herald |language=en-US}}</ref> Jordan Wood, a Lewiston native and former chief of staff to former [[California]] U.S. Representative [[Katie Porter]], initially ran for Maine’s U.S. Senate seat in [[2026 United States Senate election in Maine|2026]] but announced that he was switching to the 2nd district race following Golden's withdrawal.<ref name="jw"/> [[Joe Baldacci]], younger brother of former [[Governor of Maine|Maine governor]] and former representative for the district [[John Baldacci]], entered the race on January 12, 2026.<ref name="d2"/> Baldacci previously ran for the seat in [[2016 United States House of Representatives elections in Maine#District 2|2016]] but withdrew before the primary.<ref>{{Cite web |last=Sharon |first=Susan |date=2016-02-05 |title=Joe Baldacci Drops Out of Congressional Race |url=https://www.mainepublic.org/politics/2016-02-05/joe-baldacci-drops-out-of-congressional-race |access-date=2026-01-04 |website=Maine Public |language=en}}</ref> Paige Loud, a social worker, also ran as a Democrat.<ref name=Paige/><ref name="jg"/>
+
+On the Republican side, former Maine governor from 2011 to 2019 and Republican nominee in the [[2022 Maine gubernatorial election]] [[Paul LePage]] announced a campaign for the 2nd district in May 2025.<ref name="pl"/> Despite losing the 2022 election by about 13 percentage points, LePage nonetheless narrowly carried the 2nd congressional district by about two points over incumbent Democratic governor [[Janet Mills]].<ref>{{Cite web |date=November 30, 2022 |title=Maine Secretary of State: November 8, 2022 General Election- Non-Ranked Choice Offices |url=https://www.maine.gov/sos/cec/elec/results/2022/2022GeneralElectionNonRankedChoiceOffices.html |access-date=October 12, 2025 |archive-url=https://web.archive.org/web/20221208132342/https://www.maine.gov/sos/cec/elec/results/2022/2022GeneralElectionNonRankedChoiceOffices.html |archive-date=December 8, 2022 |url-status=dead}}</ref>
+
+LePage's residency has been criticized.  He has rented an apartment in Augusta from fellow Republican [[Shawn Moody]], but LePage's campaign declined to discuss if he would live there if elected.<ref>{{Cite web |last=Billy |first=Kobin |date=2016-03-26 |title=Paul LePage is using an Augusta apartment for his political comeback |url=https://www.pressherald.com/2026/03/26/paul-lepage-is-using-an-augusta-apartment-for-his-political-comeback/|access-date=2026-05-19 |website=pressherald.com |language=en}}</ref> 
+
+In the Democratic primary, no candidate received 50% of the vote, sending the election to a ranked-choice runoff.<ref>{{cite news |last1=Miller |first1=Kevin |title=2nd District Democratic primary seems bound for ranked-choice runoff in tight race |url=https://www.mainepublic.org/politics/2026-06-09/2nd-district-democratic-primary-seems-bound-for-ranked-choice-runoff-in-tight-race |access-date=15 June 2026 |work=Maine Public |date=10 June 2026 |language=en}}</ref> Dunlap defeated Baldacci in the final round, 52.5%–47.5%.
+

@@ -125,7 +125,7 @@ export function reconcilePage(): string {
   const ids = ctx.data.races.map((r) => r.id);
   let both = 0, same = 0, differ = 0, fOnly = 0, eOnly = 0, neither = 0;
   const matrix: Record<Party, Record<Party, number>> = { D: { D: 0, R: 0, O: 0 }, R: { D: 0, R: 0, O: 0 }, O: { D: 0, R: 0, O: 0 } };
-  const byChamber: Record<Chamber, { both: number; same: number }> = { senate: { both: 0, same: 0 }, governor: { both: 0, same: 0 } };
+  const byChamber: Record<Chamber, { both: number; same: number }> = { senate: { both: 0, same: 0 }, house: { both: 0, same: 0 }, governor: { both: 0, same: 0 } };
   const diffRows: string[] = [];
   for (const id of ids) {
     const r = raceById(id)!;
@@ -152,6 +152,7 @@ export function reconcilePage(): string {
   <h2>By chamber</h2>
   <table class="list"><thead><tr><th>Chamber</th><th>Both recorded</th><th>Same candidate</th><th></th></tr></thead><tbody>
   <tr><th scope="row">Senate</th><td>${byChamber.senate.both}</td><td>${pct(byChamber.senate.same, byChamber.senate.both)}</td><td>${bar(byChamber.senate.same, byChamber.senate.both)}</td></tr>
+  <tr><th scope="row">House</th><td>${byChamber.house.both}</td><td>${pct(byChamber.house.same, byChamber.house.both)}</td><td>${bar(byChamber.house.same, byChamber.house.both)}</td></tr>
   <tr><th scope="row">Governors</th><td>${byChamber.governor.both}</td><td>${pct(byChamber.governor.same, byChamber.governor.both)}</td><td>${bar(byChamber.governor.same, byChamber.governor.both)}</td></tr></tbody></table>
   <h2>Endorsed party against forecast party</h2>
   <div class="tablewrap"><table class="list matrix"><thead><tr><th></th><th>Forecast Democratic</th><th>Forecast Republican</th><th>Forecast Other</th></tr></thead><tbody>${mrows}</tbody></table></div>

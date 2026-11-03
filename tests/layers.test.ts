@@ -9,6 +9,7 @@ import type { CallRecord, Race } from '../src/data/schema';
 
 const race: Race = {
   id: 'senate-ZZ', chamber: 'senate', state: 'ZZ', stateName: 'Zed', label: 'Zed Senate', special: false,
+  district: null,
   seatPartyBefore: 'R', incumbentName: null,
   candidates: [
     { id: 'senate-ZZ:a', name: 'A', party: 'D', partyLabel: 'Democratic', wikipediaTitle: null },
