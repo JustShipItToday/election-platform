@@ -1,6 +1,6 @@
 # AGENTS.md — Elecia (working title: Election Forecast Builder)
 
-> DRAFT v0.1 — written 2026-11-03 during the planning phase. Nothing in this file authorizes implementation until the owner approves `docs/00-decisions-needed.md`.
+> v0.2 — 2026-11-03. The owner approved a free, static GitHub Pages build with no accounts (see `docs/09-static-pivot.md`). Where this file describes a server, database trigger, or AI agent, that is the long-term design; `docs/09` says what actually ships now.
 
 ## 1. What this project is
 
@@ -9,7 +9,7 @@ A public-grade web app centered on the **2026 U.S. elections**. One major area, 
 - **Forecasting** (default): "What do you think will happen?"
 - **Endorsing**: "What do you want to happen / whom do you support?"
 
-Plus **Reconcile** (descriptive stats comparing the two), a **factual-only AI research agent**, interactive maps, saved forecasts, and utility pages (About, Contact, Terms, Blog), each with its own designed look.
+(The AI research agent is **not shipped** in the static build, because it needs a paid key and a server; every rule below still binds it when it is built.) Plus **Reconcile** (descriptive stats comparing the two), a **factual-only AI research agent**, interactive maps, saved forecasts, and utility pages (About, Contact, Terms, Blog), each with its own designed look.
 
 The owner is the primary user for now, but this is architected as a real public app. Tone: joyful, sunny, biophilic, modern, never childish, never a dark political-news dashboard.
 
@@ -42,7 +42,7 @@ The UI is never the database. Every fact in the UI traces to a row with `source_
 The UI visibly separates: polling data · historical results · official candidate/campaign statements · government/public records · analyst ratings · news reporting · AI-generated summaries. Never merge categories into one undifferentiated blob.
 
 ### 3.6 Lifecycle gate
-Forecasting/Endorsing writes close at **2026-11-04T09:57:00Z** (= Nov 4, 1:57 AM PST = 4:57 AM EST). Real results display from **2026-11-04T14:00:00Z** (9:00 AM EST). Enforced **server-side and in the database** using DB `now()`, never the client clock. Saved forecasts stay readable forever. Constants live in one module (`lifecycle`), not scattered.
+Forecasting/Endorsing writes close at **2026-11-04T09:57:00Z** (= Nov 4, 1:57 AM PST = 4:57 AM EST). Real results display from **2026-11-04T14:00:00Z** (9:00 AM EST). Constants live in one module (`src/domain/lifecycle.ts`), not scattered. Saved forecasts stay readable forever. **Current static build:** the gate runs in the browser against server time read from the HTTP `Date` header of our own host (`src/domain/clock.ts`), never the visitor's clock on its own, and the write layer (`src/storage.ts`, `src/ctx.ts`) refuses writes after the cutoff. A determined visitor can bypass a client-side gate; that limit is accepted for a free static site and documented. **Long-term design:** enforce in the database with `now()`.
 
 ### 3.7 No placeholders
 The owner's standing rule: no placeholder code, TODO stubs, lorem ipsum, or fake data presented as real, anywhere. If something cannot be built yet, say so explicitly in docs rather than stubbing it silently. Test fixtures must be clearly labeled as fixtures and never ship in production data paths.
@@ -53,7 +53,7 @@ No API keys or secrets in client code, the repo, logs, or prompts. Server-side e
 ## 4. Architecture conventions (proposed; see docs for rationale)
 
 - TypeScript everywhere, `strict: true`. Zod (or equivalent) schemas at every boundary: ingestion, API, tool I/O, DB reads of JSON.
-- Layers: `ingest/` (provider adapters → normalized rows) → `db/` (schema, migrations) → `domain/` (pure deterministic logic: polling, makeup, lifecycle, deferral queue) → `tools/` (AI tool contracts wrapping domain+db) → `app/` (UI). UI never imports ingest; AI never touches the DB except through `tools/`.
+- Layers (current static build): `pipeline/` (provider adapters → validated `public/data/dataset.json`) → `src/data/` (Zod schema, shared) → `src/domain/` (pure deterministic logic: polling, makeup, lifecycle, deferral queue, scope, evidence gate, clock) → `src/ui/` (rendering). The UI never imports `pipeline/`. Long-term: `db/` and `tools/` layers for a server and AI agent.
 - Provider adapters are swappable. Never hard-code one polling or results provider.
 - Raw provider payloads are stored (immutable) alongside normalized rows so we can re-derive after a provider changes.
 - Forecast snapshots are immutable and reproducible (they pin the data snapshot + methodology used).

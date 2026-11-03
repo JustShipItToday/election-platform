@@ -17,8 +17,8 @@ Legend — Need: 🔴 blocks launch · 🟡 strongly wanted · 🟢 nice to have
 ### Polling
 | Source | Coverage | Access | Status |
 |---|---|---|---|
-| **FiftyPlusOne** | Senate/governor/House general + primary, generic ballot, pollster list, candidates.csv, races.csv | CSV downloads at `/downloads` (some files premium-only: crosstabs). | ⚠️ Terms/license/rate limits unstated on ReadMe; must read `/terms`. Likely **primary poll source** if terms permit. |
-| **VoteHub Polling API** | Senate, House, governor, generic ballot | JSON API (`api.votehub.com`), reported **CC BY 4.0** (credit VoteHub + original poll URL). | ⚠️ Only found via a third-party index. Must confirm at `votehub.com/polls/api/`. Strong candidate as **secondary/fallback**. |
+| **FiftyPlusOne** | Senate/governor/House polls, etc. | **Paid.** Their downloads page lists Standard $100/month and up and requires an API key. | ❌ Dropped (owner wants no spend). My earlier note that it was free was wrong. |
+| **VoteHub Polling API** | Senate (`us-senator`), governor, House (`us-representative`), generic ballot, CA Prop 50 | Free, keyless JSON API (`api.votehub.com/polls?poll_type=…`), reported **CC BY 4.0** (credit VoteHub + original poll URL). | ✅ **Primary poll source.** Verified live 2026-11-03: fresh through 2026-11-02. Their website blocks bots (403), so the CC BY 4.0 claim is still from a third-party listing: confirm on votehub.com. |
 | Electoral-vote.com | Senate polls | Plain text/CSV | ⚠️ Terms unconfirmed. Fallback. |
 | FiveThirtyEight archives (DataHub mirror) | Historical, generic ballot | CSV | Stale (last update noted Mar 2026); historical only. |
 | RCP | Averages | No public API | Not usable as a data source; at most a human link-out. |

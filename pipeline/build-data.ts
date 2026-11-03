@@ -9,7 +9,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { DatasetSchema, type Candidate, type Dataset, type Party, type Poll, type Race, type SourceRef } from '../src/data/schema';
-import { STATES, SENATE_STATES, GOVERNOR_STATES, SENATE_SPECIAL } from './states';
+import { STATES, SENATE_STATES, GOVERNOR_STATES, SENATE_SPECIAL } from '../src/data/states';
 import { parseInfobox, normalizeParty, linkTarget, slug, matchName, type Infobox } from './infobox';
 import { FORECAST_CLOSES_AT_MS, RESULTS_VISIBLE_AT_MS } from '../src/domain/lifecycle';
 

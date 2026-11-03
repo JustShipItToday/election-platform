@@ -26,3 +26,8 @@ export const GOVERNOR_STATES: string[] = [
   'MA', 'MI', 'MN', 'NE', 'NV', 'NH', 'NM', 'NY', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN',
   'TX', 'VT', 'WI', 'WY',
 ];
+
+/** USPS code by full state name, for matching map features. */
+export const USPS_BY_NAME: Record<string, string> = Object.fromEntries(
+  Object.entries(STATES).map(([code, name]) => [name, code]),
+);

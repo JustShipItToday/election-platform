@@ -1,0 +1,44 @@
+name: Build and deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Refresh polls, nominees and reported results every 15 minutes. Scheduled runs only fire from the default branch.
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Refresh data (keeps the last committed data if a source is down)
+        run: npm run data
+        continue-on-error: true
+      - name: Tests (includes data and calls.json guards)
+        run: npm test
+      - run: npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
