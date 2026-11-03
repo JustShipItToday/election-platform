@@ -4,7 +4,7 @@ import { getJson } from './http';
 export interface Legislator {
   id: { bioguide: string };
   name: { official_full?: string; first: string; last: string };
-  terms: { type: string; state: string; class?: number; district?: number; party: string; end: string; caucus?: string }[];
+  terms: { type: string; state: string; class?: number; district?: number; party: string; start: string; end: string; caucus?: string }[];
 }
 
 export function partyBucket(party: string): Party {

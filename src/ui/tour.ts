@@ -14,7 +14,7 @@ function steps(): Step[] {
     { title: 'A map you can explore', art: sprig(90), body: 'Pan, zoom, and click a state to open its race. Prefer words to colors? The List view shows the same information as a table.' },
     { title: 'Saving, in your browser', art: tally(90), body: 'Save working versions as <em>prediction maps</em> and freeze named snapshots as <em>forecast maps</em>. Nothing leaves your device, so export a file if you want a backup.' },
     { title: 'Election night and after', art: dusk(100), body: `Predictions close at <strong>${formatInstant(FORECAST_CLOSES_AT_MS)}</strong> (${LOCAL_ZONE}). Real results start appearing at <strong>${formatInstant(RESULTS_VISIBLE_AT_MS)}</strong>. Your saved maps stay open for exploring, and you can compare them with what happened.` },
-    { title: 'Facts, with sources', art: sprig(90), body: 'Elecia shows sourced facts and never tells you whom to support. There is no AI chat in this release, and everything works by hand.' },
+    { title: 'Facts, with sources', art: sprig(90), body: 'Elecia shows sourced facts and never tells you whom to support. The research helper answers factual questions with sources, it is rule-based rather than an AI model, and you can hide it with the × at any time. Everything works by hand too.' },
   ];
 }
 

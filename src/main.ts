@@ -169,4 +169,16 @@ try {
   if (t === 'dark' || t === 'light') document.documentElement.dataset['theme'] = t;
 } catch { /* optional */ }
 
+// A photo that fails to load falls back to initials; we never substitute another image.
+document.addEventListener('error', (e) => {
+  const t = e.target as HTMLElement | null;
+  if (t instanceof HTMLImageElement && t.classList.contains('cphoto')) {
+    const span = document.createElement('span');
+    span.className = `avatar-fallback ${t.dataset['party'] ?? 'O'}`;
+    span.setAttribute('aria-hidden', 'true');
+    span.textContent = t.dataset['fallback'] ?? '';
+    t.replaceWith(span);
+  }
+}, true);
+
 void boot();

@@ -129,6 +129,8 @@ export interface Working {
   tourSeen: boolean;
   /** Ballot-question choices. Kept apart from race picks so they can never reach chamber totals. */
   ballot?: { forecast: Record<string, BallotCall>; endorse: Record<string, BallotCall> };
+  /** The user chose to hide the research helper. */
+  assistantHidden?: boolean;
   /** How many items were shown since each deferred item was set aside, keyed `${mode}:${raceId}`. */
   counters?: Record<string, number>;
 }
@@ -146,6 +148,7 @@ export function loadWorking(fallback: Working): Working {
       scope: p.scope ?? fallback.scope,
       tourSeen: p.tourSeen ?? false,
       counters: p.counters ?? {},
+      assistantHidden: p.assistantHidden ?? false,
       ballot: p.ballot ?? { forecast: {}, endorse: {} },
     };
   } catch {

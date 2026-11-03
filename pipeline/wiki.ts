@@ -15,11 +15,11 @@ export const MIN = 60_000;
 export const HOUR = 60 * MIN;
 export const DAY = 24 * HOUR;
 
-async function cached(key: string, ttlMs: number, fetcher: () => Promise<string>): Promise<string> {
+async function cached(key: string, ttlMs: number, fetcher: () => Promise<string>, gapMs = MIN_GAP_MS): Promise<string> {
   mkdirSync(CACHE_DIR, { recursive: true });
   const file = `${CACHE_DIR}/${createHash('sha1').update(key).digest('hex')}.json`;
   if (existsSync(file) && Date.now() - statSync(file).mtimeMs < ttlMs) return readFileSync(file, 'utf8');
-  const wait = lastRequestAt + MIN_GAP_MS - Date.now();
+  const wait = lastRequestAt + gapMs - Date.now();
   if (wait > 0) await sleep(wait);
   lastRequestAt = Date.now();
   let body: string;
@@ -58,8 +58,9 @@ export async function wikitext(title: string, ttlMs = 15 * MIN): Promise<WikiPag
   return { title: page.title, text: rev.slots.main.content, revisionId: rev.revid ?? null, url: pageUrl(page.title) };
 }
 
-export async function wikiJson<T>(url: string, ttlMs: number): Promise<T> {
-  return JSON.parse(await cached(`json:${url}`, ttlMs, () => getText(url))) as T;
+/** gapMs lets high-capacity read APIs (REST summaries, batched queries) be called faster than page loads. */
+export async function wikiJson<T>(url: string, ttlMs: number, gapMs = MIN_GAP_MS): Promise<T> {
+  return JSON.parse(await cached(`json:${url}`, ttlMs, () => getText(url), gapMs)) as T;
 }
 
 /** Split a wikitext table body into rows (text between "|-" separators). */

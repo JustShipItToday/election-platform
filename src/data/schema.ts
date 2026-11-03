@@ -146,3 +146,45 @@ export const CallsFileSchema = z.object({
 });
 export type CallRecord = z.infer<typeof CallSchema>;
 export type CallsFile = z.infer<typeof CallsFileSchema>;
+
+// ---------- Research context (ratings, history, candidate profiles) ----------
+export const RatingSchema = z.object({
+  source: z.string(),
+  rating: z.string(),
+  asOf: z.string(),
+  /** The rating organization's own page, taken from the citation on Wikipedia. */
+  url: z.string().nullable(),
+});
+export type Rating = z.infer<typeof RatingSchema>;
+
+export const HistoryEntrySchema = z.object({
+  title: z.string(),
+  url: z.string(),
+  results: z.array(z.object({ name: z.string(), party: PartySchema, partyLabel: z.string(), votes: z.number().nullable(), pct: z.number().nullable() })),
+  retrievedAt: z.string(),
+});
+export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
+
+export const CandidateProfileSchema = z.object({
+  photo: z.object({ url: z.string(), credit: z.string(), license: z.string(), pageUrl: z.string(), kind: z.enum(['bioguide', 'commons']) }).nullable(),
+  bio: z.object({ text: z.string(), url: z.string(), license: z.string(), retrievedAt: z.string() }).nullable(),
+  facts: z.object({
+    birth: z.string().nullable(),
+    positions: z.array(z.string()),
+    education: z.array(z.string()),
+    website: z.string().nullable(),
+    wikidataId: z.string().nullable(),
+  }),
+  /** Public-record service history from the congressional roster (public domain). */
+  congressService: z.array(z.string()),
+  campaign: z.object({ url: z.string(), title: z.string().nullable(), description: z.string().nullable(), issuesUrl: z.string().nullable(), fetchedAt: z.string() }).nullable(),
+});
+export type CandidateProfile = z.infer<typeof CandidateProfileSchema>;
+
+export const ResearchSchema = z.object({
+  generatedAt: z.string(),
+  races: z.record(z.string(), z.object({ ratings: z.array(RatingSchema), ratingsUrl: z.string().nullable(), history: z.array(HistoryEntrySchema) })),
+  candidates: z.record(z.string(), CandidateProfileSchema),
+  warnings: z.array(z.string()),
+});
+export type Research = z.infer<typeof ResearchSchema>;

@@ -82,6 +82,30 @@ export function districtBoxes(text: string, seatCount: number): Map<string, Info
   return out;
 }
 
+/** Like districtBoxes, but also returns each district's section text (for ratings tables). */
+export function districtParts(text: string, seatCount: number): Map<string, { box: Infobox; section: string }> {
+  const heads: { pos: number; level: number; district: string | null }[] = [];
+  for (const m of text.matchAll(/^(={2,5})\s*([^=\n]+?)\s*\1\s*$/gm)) {
+    const d = /\bDistrict\s+(\d+)\b/i.exec(m[2]!);
+    heads.push({ pos: m.index ?? 0, level: m[1]!.length, district: d ? String(Number(d[1])) : /at-large/i.test(m[2]!) ? 'AL' : null });
+  }
+  const boxes = districtBoxes(text, seatCount);
+  const out = new Map<string, { box: Infobox; section: string }>();
+  for (const [district, box] of boxes) {
+    const i = heads.findIndex((h) => h.district === district);
+    let section = '';
+    if (i >= 0) {
+      const start = heads[i]!;
+      const next = heads.slice(i + 1).find((h) => h.level <= start.level);
+      section = text.slice(start.pos, next?.pos ?? text.length);
+    } else if (seatCount === 1) {
+      section = text;
+    }
+    out.set(district, { box, section });
+  }
+  return out;
+}
+
 export interface HouseResult {
   races: Race[];
   coverage: { seats: number; withNominees: number; vacant: number; noPage: string[] };

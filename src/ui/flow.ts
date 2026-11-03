@@ -10,6 +10,8 @@ import { LIMITS, saveMap, type SavedMap, type SavedSeat } from '../storage';
 import { mapEl, paintMap, resizeMap, flyToView, colorVar, type StateColor } from './map';
 import { registerActions } from './actions';
 import { sprig, tally } from './mascots';
+import { avatar, researchSections, setResearchListener, ensureResearch } from './research';
+import { bindAssistant, renderAssistant } from './assistant';
 
 type ViewChamber = Chamber | 'ballot';
 
@@ -82,6 +84,7 @@ export function mountFlow(host: HTMLElement, m: Mode): void {
   for (const [k, n] of Object.entries(ctx.working.counters ?? {})) if (k.startsWith(`${m}:`)) counters.set(k.slice(m.length + 1), n);
   if (m === 'endorse') view.colorBy = 'picks';
   syncQueue();
+  ensureResearch();
   host.innerHTML = `
   <div class="flow ${m}">
     <details class="sidebar-wrap" id="sidebar-wrap" open>
@@ -275,6 +278,7 @@ function renderSidebar(): void {
   const clauses = s.include.length ? s.include.map((c, i) => clauseHtml(c, i)).join('') : '';
   const n = scopeRaces().length;
   el.innerHTML = `
+    <div id="assistant"></div>
     <h2 class="side-h">Your scope</h2>
     <p class="scope-text"><strong>${n}</strong> race${n === 1 ? '' : 's'}: ${esc(describeScope(s))}</p>
     ${clauses || '<p class="muted">No filters: every Senate, House and Governor race.</p>'}
@@ -299,7 +303,9 @@ function renderSidebar(): void {
     ${mode === 'forecast' ? `<h2 class="side-h">Quick start</h2>
       <button class="btn" data-action="rule-polling" ${writable() ? '' : 'disabled'}>Go with what polling says</button>
       <p class="muted small">Calls every uncalled race in scope where the polling leader is clear under your method. Ties and races with no polls stay yours to decide. You can change any call.</p>` : ''}
-    <p class="muted small">No AI is running on this site tonight, so everything here works by hand.</p>`;
+    <p class="muted small">Everything here works by hand. The research helper is optional and can be hidden.</p>`;
+  const slot = el.querySelector('#assistant') as HTMLElement | null;
+  if (slot) renderAssistant(slot);
 }
 
 function mutateClause(i: number, fn: (c: Clause) => void): void {
@@ -364,7 +370,7 @@ function renderCard(): void {
           const chosen = pick?.candidateId === c.id;
           return `<li class="cand ${chosen ? 'chosen' : ''}">
             <button class="pickbtn ${c.party}" data-action="pick" data-cand="${esc(c.id)}" ${writable() ? '' : 'disabled'} aria-pressed="${chosen}">
-              <span class="chip big ${c.party}">${letter[c.party]}</span>
+              ${avatar(c, 44)}<span class="chip big ${c.party}">${letter[c.party]}</span>
               <span class="cname">${esc(c.name)}<small>${esc(c.partyLabel)}</small></span>
               ${a ? `<span class="cpct">${pct(a.pct)}<small>${a.pollsCounted} poll${a.pollsCounted === 1 ? '' : 's'}</small></span>` : ''}
             </button>
@@ -425,6 +431,7 @@ function renderCard(): void {
         <summary>${allPolls.length} poll${allPolls.length === 1 ? '' : 's'} on file (${out.selection.included.length} used)</summary>
         ${allPolls.length ? `<div class="tablewrap"><table class="pt"><thead><tr><th>Pollster</th><th>Field dates</th><th>Sample</th><th>Result</th><th>In average?</th><th>Link</th></tr></thead><tbody>${pollRows}</tbody></table></div>${allPolls.length > 40 ? '<p class="muted small">Showing the newest 40.</p>' : ''}` : '<p class="muted">No polls matched this race\'s nominees.</p>'}
       </details>
+      ${researchSections(race)}
       <p class="sources small muted"><span class="srctag">Candidates</span> <a href="${esc(race.source.url)}" target="_blank" rel="noopener noreferrer">Wikipedia</a> (CC BY-SA 4.0), retrieved ${esc(race.source.retrievedAt.slice(0, 16).replace('T', ' '))} UTC · <span class="srctag">${race.chamber === 'house' ? 'Incumbent' : 'Seat holder'}</span> ${race.chamber === 'senate' ? 'congress-legislators' : 'Wikipedia'} · <span class="srctag">Polls</span> <a href="https://votehub.com/polls/api/" target="_blank" rel="noopener noreferrer">VoteHub</a> (CC BY 4.0), each poll links to its original source</p>
     </article>
     ${deferred}
@@ -866,6 +873,53 @@ export function onMapPick(key: string): void {
   renderAll();
   if (window.matchMedia('(max-width: 900px)').matches) root.querySelector('#card')?.scrollIntoView({ behavior: 'smooth' });
 }
+
+setResearchListener(() => { if (root?.querySelector('.flow') && !isBallot()) renderCard(); });
+
+function applyPollingRuleNow(): { called: number; left: number } {
+  let called = 0;
+  let left = 0;
+  for (const race of scopeRaces()) {
+    if (ctx.working.forecast[race.id]) continue;
+    const o = outcomeFor(race);
+    if (o.status === 'leader' && o.leaderId) {
+      setPick('forecast', race, o.leaderId, o.leaderParty ?? undefined, 'rule:polling');
+      called += 1;
+    } else left += 1;
+  }
+  syncQueue();
+  emit();
+  renderAll();
+  return { called, left };
+}
+
+bindAssistant({
+  mode: () => mode,
+  writable,
+  setScope: (scope) => { ctx.working.scope = scope; afterScopeChange(); },
+  setPoll: (fn) => setPollSettings(fn),
+  currentRace: () => (isBallot() ? undefined : currentRace()),
+  pickCurrent: (candidateId, party) => {
+    const race = isBallot() ? undefined : currentRace();
+    if (!race || !writable()) return false;
+    syncQueue();
+    const next = decide(qs, race.id);
+    if (!setPick(mode, race, candidateId, party)) return false;
+    afterDecision(race.id, next);
+    return true;
+  },
+  deferCurrent: () => {
+    const race = isBallot() ? undefined : currentRace();
+    if (!race || !writable()) return;
+    syncQueue();
+    const next = defer(qs, race.id);
+    ctx.working.deferred[mode] = [...ctx.working.deferred[mode].filter((x) => x !== race.id), race.id];
+    persist();
+    afterDecision(race.id, next);
+    history.pop();
+  },
+  applyPollingRule: applyPollingRuleNow,
+});
 
 export function refreshFlow(): void {
   if (!root?.querySelector('.flow')) return;

@@ -202,3 +202,29 @@ dialog::backdrop { background: rgba(10, 25, 20, 0.55); }
 .listsearch { max-width: 360px; }
 table.fixed td, table.fixed th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; height: 44px; }
 .vlist { overflow: auto; }
+
+/* research sections and avatars */
+.avatar { display: inline-grid; place-items: center; border-radius: 50%; overflow: hidden; flex: 0 0 auto; background: var(--band); border: 2px solid var(--line); }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-fallback { display: grid; place-items: center; width: 100%; height: 100%; font: 700 0.9rem var(--font-d); color: var(--on-color); }
+.avatar-fallback.D { background: var(--d); } .avatar-fallback.R { background: var(--r); } .avatar-fallback.O { background: var(--o); }
+.research { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 6px; }
+.rsec { margin: 6px 0; border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; background: var(--surface); }
+.rsec h4 { margin: 10px 0 4px; font-size: 0.95rem; }
+.ccard { padding: 10px 0; border-top: 1px solid var(--line); } .ccard:first-of-type { border-top: 0; }
+.chead { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
+.pickbtn .avatar { width: 44px; height: 44px; }
+
+/* research helper */
+.asst { border: 1.5px solid var(--leaf); border-radius: 14px; padding: 10px 12px; margin: 10px 0 14px; background: var(--surface); }
+.asst-head { display: flex; justify-content: space-between; align-items: center; }
+.asst-head .side-h { margin: 0; }
+.xbtn { width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--band); color: var(--ink); font-size: 1.2rem; line-height: 1; cursor: pointer; }
+.alog { max-height: 340px; overflow: auto; margin: 8px 0; display: grid; gap: 8px; }
+.amsg.you { justify-self: end; background: var(--leaf); color: var(--on-color); padding: 6px 10px; border-radius: 12px 12px 2px 12px; max-width: 92%; font-size: 0.92rem; }
+.amsg.helper { background: var(--band); padding: 8px 10px; border-radius: 12px 12px 12px 2px; font-size: 0.92rem; }
+.ares { margin-top: 6px; } .ares p { margin: 3px 0; } .acat { margin-bottom: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.chipbtn { font: inherit; font-size: 0.82rem; padding: 4px 10px; border-radius: 99px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; text-align: left; }
+.chipbtn:hover { border-color: var(--leaf); }
+.aform { display: flex; gap: 6px; } .aform input { flex: 1; min-width: 0; font: inherit; padding: 7px 9px; border-radius: 9px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); }
