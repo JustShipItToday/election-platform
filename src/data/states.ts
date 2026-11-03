@@ -11,22 +11,6 @@ export const STATES: Record<string, string> = {
   WI: 'Wisconsin', WY: 'Wyoming',
 };
 
-/** States with a Senate seat up in 2026, derived at build time from the roster. Listed for sanity checks only. */
-export const SENATE_STATES: string[] = [
-  'AL', 'AK', 'AR', 'CO', 'DE', 'GA', 'ID', 'IL', 'IA', 'KS', 'KY', 'LA', 'ME', 'MA', 'MI', 'MN',
-  'MS', 'MT', 'NE', 'NH', 'NJ', 'NM', 'NC', 'OK', 'OR', 'RI', 'SC', 'SD', 'TN', 'TX', 'VA', 'WV', 'WY',
-];
-
-/** Special elections for seats whose regular term ends in 2029. */
-export const SENATE_SPECIAL: string[] = ['OH', 'FL'];
-
-/** Governor races on the ballot on Nov 3, 2026. */
-export const GOVERNOR_STATES: string[] = [
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'FL', 'GA', 'HI', 'ID', 'IL', 'IA', 'KS', 'ME', 'MD',
-  'MA', 'MI', 'MN', 'NE', 'NV', 'NH', 'NM', 'NY', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN',
-  'TX', 'VT', 'WI', 'WY',
-];
-
 /** USPS code by full state name, for matching map features. */
 export const USPS_BY_NAME: Record<string, string> = Object.fromEntries(
   Object.entries(STATES).map(([code, name]) => [name, code]),
